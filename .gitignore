@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Data (never commit raw/processed event logs or large derived artifacts)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Experiment outputs (regenerable from configs + code; too large/volatile to version)
+results/*
+!results/.gitkeep
+figures/*
+!figures/.gitkeep
+
+# Model checkpoints
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+
+# Notebooks: keep the notebooks, drop execution checkpoints
+.ipynb_checkpoints/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Never ignore lockfiles or plan/status tracking docs.
+!uv.lock
+!PLAN.md
+!STATUS.md

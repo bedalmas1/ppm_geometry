@@ -1,0 +1,23 @@
+[project]
+name = "ppm-geometry"
+version = "0.1.0"
+description = "Geometry of latent representations learned by predictive process monitoring models (ICPM 2027 ML4PM)."
+authors = [
+    { name = "Benjamin.Dalmas", email = "benjamin.dalmas@igrafx.com" }
+]
+# Kept permissive for now; Phase 1 (literature/repo audit) may force a narrower
+# upper bound if a chosen baseline repo requires an older torch/Python combo.
+requires-python = ">=3.11,<3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.uv]
+package = false
