@@ -5,10 +5,27 @@ description = "Geometry of latent representations learned by predictive process 
 authors = [
     { name = "Benjamin.Dalmas", email = "benjamin.dalmas@igrafx.com" }
 ]
-# Kept permissive for now; Phase 1 (literature/repo audit) may force a narrower
-# upper bound if a chosen baseline repo requires an older torch/Python combo.
+# Phase 1 audit: A1 (ProcessTransformer) needs TensorFlow, A2/A3/B1-B3 need
+# PyTorch. <3.14 keeps both frameworks' current wheels available.
 requires-python = ">=3.11,<3.14"
-dependencies = []
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Family A1 (ProcessTransformer) only. Kept separate from `torch` below so a
+# training run for one framework never has to resolve the other's wheels.
+tf = [
+    "tensorflow>=2.16,<2.20",
+]
+# Family A2/A3 (SuTraN, CRTP-LSTM) and all of Family B (in-house controlled
+# Transformer). Exact pin TBD once Phase 3 picks a CUDA/CPU target.
+torch = [
+    "torch>=2.3",
+]
 
 [dependency-groups]
 dev = [
