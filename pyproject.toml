@@ -5,8 +5,9 @@ description = "Geometry of latent representations learned by predictive process 
 authors = [
     { name = "Benjamin.Dalmas", email = "benjamin.dalmas@igrafx.com" }
 ]
-# Phase 1 audit: A1 (ProcessTransformer) needs TensorFlow, A2/A3/B1-B3 need
-# PyTorch. <3.14 keeps both frameworks' current wheels available.
+# Phase 1 audit (9-model roster): A1/A2 need TensorFlow; A4/A5/A7/B1/B2 need
+# plain PyTorch; A6 additionally needs HuggingFace transformers; A3
+# additionally needs DGL. <3.14 keeps all frameworks' current wheels available.
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "pandas>=2.0",
@@ -16,15 +17,28 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Family A1 (ProcessTransformer) only. Kept separate from `torch` below so a
-# training run for one framework never has to resolve the other's wheels.
+# A1 ProcessTransformer, A2 GenerativeLSTM. Kept separate from `torch` below so
+# a training run for one framework never has to resolve the other's wheels.
 tf = [
     "tensorflow>=2.16,<2.20",
 ]
-# Family A2/A3 (SuTraN, CRTP-LSTM) and all of Family B (in-house controlled
-# Transformer). Exact pin TBD once Phase 3 picks a CUDA/CPU target.
+# A4 SuTraN, A5 CRTP-LSTM, A7 MLMME, B1/B2 (in-house controlled Transformer).
+# Exact pin TBD once Phase 3 picks a CUDA/CPU target.
 torch = [
     "torch>=2.3",
+]
+# A6 LUPIN only. Separate group: adds a BERT checkpoint download dependency
+# not needed by any other model.
+torch-hf = [
+    "torch>=2.3",
+    "transformers>=4.38",
+]
+# A3 RLHGNN only. Separate group: DGL has its own version-matching
+# constraints against torch/CUDA, kept isolated so a bad DGL install can't
+# block the other PyTorch models.
+torch-dgl = [
+    "torch>=2.3",
+    "dgl",
 ]
 
 [dependency-groups]
