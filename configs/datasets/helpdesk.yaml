@@ -1,0 +1,23 @@
+# Helpdesk (Italian company) — small ticketing log (simple/linear structure)
+name: helpdesk
+display_name: "Helpdesk log of an Italian Company"
+source:
+  doi: "10.4121/uuid:0c60edf1-6f83-4e75-9367-4c63b3e9d5bb"
+  landing_page: "https://data.4tu.nl/articles/dataset/Dataset_belonging_to_the_help_desk_log_of_an_Italian_Company/12675977"
+  file: "finale.csv"  # delivered inside the landing page's "download all files (zip)" bundle
+  format: csv  # only non-XES source in the roster — needs a separate ingestion path
+  approx_size_mb: 3.27
+raw_path: "data/raw/helpdesk/finale.csv"
+processed_path: "data/processed/helpdesk/"
+outcome_label: null  # outcome prediction dropped from this study; this log also has the weakest native outcome label of the five anyway
+split:
+  method: time_based_case_sort
+  train_frac: 0.64
+  val_frac: 0.16
+  test_frac: 0.20
+notes: >
+  Same dataset ProcessTransformer's (A1) own paper evaluated on — useful for
+  the Phase 3 baseline-reproduction check. CSV, not XES: the shared
+  preprocessing pipeline (src/data/) needs a distinct loader for this one
+  file, converging to the same common schema as the XES-derived datasets
+  before splitting.

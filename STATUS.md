@@ -2,8 +2,8 @@
 
 > Living tracker. Update this file at the end of every session — new sessions should read this file first, then jump to the relevant phase in [`PLAN.md`](./PLAN.md). Keep entries dated; never delete history from the decision log, only append.
 
-**Current phase:** Phase 2 — Dataset pipeline (partially started)
-**Last updated:** 2026-08-14
+**Current phase:** Phase 3 — Baseline reproduction (not started)
+**Last updated:** 2026-08-15
 
 ---
 
@@ -11,7 +11,7 @@
 
 - [x] Phase 0 — Repository & tooling scaffolding
 - [x] Phase 1 — Literature & repository audit
-- [ ] Phase 2 — Dataset pipeline
+- [x] Phase 2 — Dataset pipeline
 - [ ] Phase 3 — Baseline reproduction
 - [ ] Phase 4 — Representation extraction
 - [ ] Phase 5 — Geometry metric implementation & synthetic validation
@@ -65,10 +65,28 @@ Full write-up: [`paper/related_work_model_audit.md`](./paper/related_work_model_
 
 **ICPM 2027 / ML4PM CFP:** conference dates confirmed (Feb 8–12, 2027, University of Calabria); no ML4PM-specific CFP, deadline, or page limit found yet — too early. Re-check before Phase 11.
 
-### Phase 2 — Dataset pipeline — partially started
-- **Dataset roster chosen (pending final write-up):** BPIC12, BPIC17, BPIC19, Sepsis, Helpdesk — 5 logs spanning ~1K–250K cases, 16–42 activities, simple/linear to highly variable/rework-heavy structure. Verified 2026-08-14 via a research fork: all 5 have live, confirmed 4TU.ResearchData download links (not guessed) — BPIC12/17/19 and Sepsis are XES(.gz), **Helpdesk is CSV** (needs a separate ingestion path from the shared preprocessing pipeline). BPIC17/BPIC19 overlap with the SuTraN/CRTP-LSTM repo's own datasets, which helps the Phase 3 reproduction check. Sanity check: roster judged not cherry-picked; only minor flag is Helpdesk having the weakest native outcome label of the five, which doesn't matter now that outcome prediction is dropped.
-- **Environment/dependency setup, revised for the 9-model roster:** `pyproject.toml` has base deps (`pandas`, `numpy`, `scikit-learn`, `pyyaml`) synced and locked, plus four optional-dependency groups (resolved/locked via `uv lock`, not yet synced/installed into the active venv): `tf` (A1, A2), `torch` (A4, A5, A7, B1, B2), `torch-hf` (A6, adds `transformers`), `torch-dgl` (A3, adds `dgl`, isolated since DGL has its own torch/CUDA version constraints). This answers the Phase 1 "TF vs PyTorch coexistence" question and its extension to two more frameworks: **separate optional-dependency groups within one project**, not fully isolated venvs or per-model repos.
-- **Not yet done:** actually downloading the 5 datasets, writing the shared preprocessing/splitting pipeline, computing the spec §6 descriptive-stats table, the empirical compute-timing pilot (now more important given 9 models × 5 datasets = up to 45 combinations), smoke-testing the 4 dependency groups actually install cleanly, and finalizing the dataset list into a committed doc (currently only in this STATUS.md entry, not yet in `paper/` or `configs/datasets/`).
+### Phase 2 — Dataset pipeline — DONE
+Full write-up: [`paper/dataset_selection.md`](./paper/dataset_selection.md) — real, computed statistics for all 5 datasets, not literature figures.
+
+**Dataset roster (finalized, downloaded, processed):** BPIC12, BPIC17, BPIC19, Sepsis, Helpdesk — all 5 downloaded (`data/raw/`, gitignored) from verified 4TU.ResearchData direct links (exact byte-size match confirmed for every file, nothing guessed) and run through the pipeline into `data/processed/<dataset>/{train,val,test}.parquet` + `manifest.json`. Every case/event/activity count matches the literature exactly (e.g. BPIC12: 13,087 cases/262,200 events; BPIC19: 251,734 cases/1,595,923 events/42 activities). **Data-quality finding, not yet resolved:** BPIC19's computed temporal span starts 1948-01-26 — a known data-quality artifact (placeholder timestamps on a handful of events), not a real 72-year process or a pipeline bug; needs an explicit cleaning rule before Phase 3 training.
+
+**Pipeline implementation:** `src/data/` is now a proper Python package (`schema.py` canonical case_id/activity/timestamp columns, `loaders.py` — XES via `pm4py`, CSV for Helpdesk, both converging to the same schema, `splits.py` — time-based case-sort split with a sha256 provenance hash, `stats.py` — full spec §6 descriptive-stats list). Driven by `scripts/prepare_dataset.py` (config-driven, one YAML per dataset in `configs/datasets/`, `--all` flag to run everything). 18 unit tests (`tests/test_loaders.py`, `test_splits.py`, `test_stats.py`) validate the splitting/stats logic against synthetic data with hand-computed expected values — pass without needing the real (gitignored) datasets. Caught and fixed a real Windows-only bug along the way: `Path.read_text()`/`write_text()` without `encoding="utf-8"` silently mojibake's non-ASCII characters (em dashes, §) on this locale — fixed in `scripts/prepare_dataset.py`.
+
+**Major environment finding — Python 3.13 → 3.12:** the dependency-group smoke test (see below) discovered TensorFlow 2.19.1 ships no wheels for CPython 3.13 (cp311/cp312 only). Since A1/A2 need TensorFlow, **the whole project was switched from Python 3.13.0 to 3.12.10** (`.python-version`, `pyproject.toml`'s `requires-python` now `>=3.11,<3.13`) — every other framework in the roster supports 3.12 fine, so one shared Python version was kept rather than fragmenting per framework.
+
+**Dependency-group smoke test — all 4 groups (`tf`, `torch`, `torch-hf`, `torch-dgl`) now genuinely verified working** (installed AND actually imported AND ran a basic operation, not just "pip install succeeded"). This surfaced and fixed a chain of real, non-obvious issues, in order:
+1. TF/CPython 3.13 incompatibility (above) → switched to Python 3.12.
+2. `torch-dgl`: dgl==2.2.1's PyPI wheel bundles a **precompiled C++ `graphbolt` extension for specific torch builds only** (inspected the wheel directly: 2.1.0–2.1.2, 2.2.0–2.2.2, 2.3.0 — nothing newer). The unpinned `torch>=2.3` constraint resolved to whatever the latest available torch was and failed at import with a missing-DLL error. **Fixed: pinned `torch==2.3.0`, `dgl==2.2.1` exactly.**
+3. dgl's `graphbolt` module imports `torchdata.datapipes`, an API **removed** in newer torchdata releases (confirmed: torchdata 0.11 raises `ModuleNotFoundError`). **Fixed: pinned `torchdata==0.7.1`**, the last release still shipping it.
+4. dgl's compiled extensions were built against NumPy 1.x; NumPy 2.x triggers ABI warnings. **Fixed: `numpy<2` added to the `torch-dgl` extra.**
+5. dgl's `graphbolt.impl.ondisk_metadata` imports `pydantic` at runtime but doesn't declare it as a dependency — a packaging bug in dgl itself. **Fixed: `pydantic` added explicitly.**
+6. **A structural fix, not just a pin:** uv resolves ONE universal lockfile satisfying every optional-dependency group simultaneously by default. `torch-dgl`'s necessary `torch==2.3.0` pin was silently bleeding into `torch-hf`, breaking `transformers` (which self-disables its PyTorch backend under torch<2.5 — a runtime check, not a declared packaging constraint, so uv had no visibility into the conflict). **Fixed properly: added `[tool.uv] conflicts` declaring `tf`/`torch`/`torch-hf`/`torch-dgl` mutually exclusive**, so uv resolves an independent version set per extra instead of one shared set — matches reality, since no training run ever needs two of these frameworks at once.
+7. Even with conflicts declared, `torch-hf` still needed an explicit `torch>=2.5` floor added to its own extra (the resolver has no data-level reason to pick a newer torch than the declared minimum, since `transformers`' real requirement is invisible to it).
+
+Final state: `tf` → TensorFlow 2.19.1 (Python 3.12, standalone). `torch` → torch 2.13.0 (current, for A4/A5/A7/B1/B2). `torch-hf` → torch 2.13.0 + transformers 5.15.0 (fully functional, not self-disabled). `torch-dgl` → torch 2.3.0 + dgl 2.2.1 + torchdata 0.7.1 + numpy<2 + pydantic (isolated fork, doesn't affect the other three groups). Base env (no extras) + all 18 tests confirmed green after every change.
+
+### Phase 3 — Baseline reproduction
+Not started. See PLAN.md Phase 3 for the full task list. With Phase 2 closed, the remaining pre-Phase-3 loose ends are: CRTP-LSTM's exact z_t layer (architecture confirmed, layer not yet pinned), Camargo GenerativeLSTM's insecure git dependency, the BPIC19 timestamp cleaning rule, and the empirical compute-timing pilot — see Next steps below.
 
 ---
 
@@ -89,19 +107,23 @@ Append one entry per decision, dated, with a one-line rationale. Never edit past
 - **2026-08-14** — Systematic full-suffix pass found LUPIN (ICPM 2024, BERT-based) and MLMME (SDM 2021, GAN-based) as 2 more reproducible candidates. User decided: adopt both, bringing full-suffix to 4 models (SuTraN, CRTP-LSTM, LUPIN, MLMME) spanning 4 architectural paradigms.
 - **2026-08-14** — Systematic next-event pass found TGN-AST (BPM 2025 main track) as a candidate; hands-on source inspection revealed it's actually a TF/Keras Transformer variant (graph component is a decoupled pretraining step, not an end-to-end GNN) — rejected despite its strong peer-review venue. User decided to adopt RLHGNN instead (the one GNN audit candidate with real, working single-case code) despite RLHGNN having no LICENSE file at all — a disclosed risk, not a hidden one. Final next-event roster: 3 models (ProcessTransformer, GenerativeLSTM, RLHGNN).
 - **2026-08-14** — **Phase 1 is now fully and finally closed** at a 9-configuration roster (A1–A7 Family A + B1/B2 Family B), well beyond the spec's stated 3–6 by explicit user direction. `pyproject.toml` extended with `torch-hf` (transformers, for LUPIN) and `torch-dgl` (dgl, for RLHGNN) optional-dependency groups alongside the existing `tf`/`torch`; `uv lock` re-run and confirmed resolving cleanly.
+- **2026-08-15** — Downloaded and processed all 5 datasets; wrote `paper/dataset_selection.md` with real computed statistics (not literature figures). Built the shared preprocessing pipeline (`src/data/` package: schema, loaders, splits, stats) with 18 passing unit tests against synthetic data.
+- **2026-08-15** — Smoke-testing the 4 dependency groups found TensorFlow 2.19.1 has no CPython 3.13 wheels. **Switched the whole project from Python 3.13.0 to 3.12.10** rather than fragmenting per-framework Python versions — every other framework in the roster supports 3.12.
+- **2026-08-15** — Same smoke test found a chain of DGL/torch/torchdata/numpy/pydantic compatibility issues for the `torch-dgl` group (RLHGNN), and a uv resolver behavior (universal lockfile forcing one extra's pin onto another) that broke `torch-hf` (LUPIN/transformers). Fixed all of it: pinned `torch==2.3.0`/`dgl==2.2.1`/`torchdata==0.7.1`/`numpy<2`/`pydantic` for `torch-dgl`; added `[tool.uv] conflicts` so extras resolve independently; pinned `torch>=2.5` explicitly for `torch-hf` (transformers' real minimum is a runtime-only check invisible to the resolver). All 4 groups now verified to actually import and run, not just install. **Phase 2 is now fully closed.**
 
 ---
 
 ## Open questions / not yet decided
 
 - Experiment tracking/logging format (lightweight structured logs under `results/` vs. an external tracker) — deferred until Phase 3 needs to log actual training runs.
-- Number of seeds per model/dataset — depends on compute budget; no literature source reported concrete GPU-hour figures, so this needs an empirical timing pilot in Phase 2/3 rather than a literature-based estimate. More important now given 9 models × 5 datasets = up to 45 combinations.
-- `requires-python` in `pyproject.toml` (`>=3.11,<3.14`) now spans 4 optional-dependency groups (`tf`, `torch`, `torch-hf`, `torch-dgl`) — still needs exact-version pinning once Phase 3 settles a CUDA/CPU target. Several models have no pinned/no dependency file at all: ProcessTransformer (`tensorflow>=2.4` only), Camargo GenerativeLSTM (pulls an unpinned git dependency over plain HTTP — needs fixing, not just pinning), SuTraN/CRTP-LSTM/RLHGNN (no dependency file).
+- Number of seeds per model/dataset — depends on compute budget; needs the empirical timing pilot (now that a real dataset pipeline exists, this is unblocked) before deciding. More important given 9 models × 5 datasets = up to 45 combinations.
+- Exact torch/CUDA target for the `torch` and `torch-hf` groups (currently unpinned beyond a floor; `torch-dgl` is hard-pinned to 2.3.0 for compatibility reasons already explained) — decide once Phase 3 picks real training hardware.
+- ProcessTransformer's `setup.py` still unpinned beyond `tensorflow>=2.4`; SuTraN/CRTP-LSTM/RLHGNN still have no dependency file at all — pin exact versions in Phase 3 when each model is actually integrated.
 - ICPM 2027 ML4PM workshop CFP details (page limit, format, deadline) — checked 2026-08-14, not published yet; conference dates (Feb 8–12, 2027) are confirmed. Re-check closer to Phase 11.
-- Dataset roster (BPIC12/17/19, Sepsis, Helpdesk) is chosen and link-verified but not yet written up as a committed doc (e.g. `configs/datasets/` or a `paper/` section) — do that as part of closing Phase 2's early tasks.
 - **RLHGNN's missing license** — worth deciding whether to email the authors for clarification before relying on it further, and exactly how to disclose the gap in the paper.
 - **Which of the 9 models actually make it into the ML4PM workshop paper vs. stay as "ran the experiment, held for a journal extension"** — user explicitly deferred this decision ("we'll see later if we integrate them in the paper"). Worth revisiting once Phase 6's descriptive results exist and it's clearer which comparisons are most informative.
 - Whether to pursue any of the ~15 no-repo papers found during the systematic review (emailing authors, reimplementing) — logged as a journal-extension-scale task, not blocking the workshop paper.
+- BPIC19's timestamp data-quality artifact (1948-01-26 start) needs an explicit, documented cleaning rule before training on it — not yet decided what that rule should be (drop events before a cutoff? clip? flag and exclude affected cases entirely?).
 
 ## Blockers
 
@@ -109,8 +131,9 @@ None currently.
 
 ## Next steps (pick these up first in the next session)
 
-1. Continue Phase 2 — dataset pipeline: write up the chosen 5-dataset roster (BPIC12, BPIC17, BPIC19, Sepsis, Helpdesk) as a committed doc, then implement shared preprocessing/splitting and compute the spec §6 descriptive-stats table.
-2. Sync and smoke-test all 4 dependency groups (`uv sync --extra tf`, `--extra torch`, `--extra torch-hf`, `--extra torch-dgl`, tried separately) to confirm they actually resolve/install cleanly before Phase 3 needs them — `torch-dgl` in particular is a risk given DGL's version-matching finickiness.
+1. Begin Phase 3 — baseline reproduction (see PLAN.md Phase 3 tasks): for each of the 9 models, clone the actual training code (Family A) or implement it (Family B), get it running end-to-end on at least one dataset, and compare Family A's predictive metrics against published numbers.
+2. Decide and implement a cleaning rule for BPIC19's 1948-01-26 timestamp artifact before that dataset is used for training.
 3. Hands-on-pin CRTP-LSTM's exact z_t extraction layer (architecture confirmed, exact layer still TBD — every other adopted model already has this pinned down).
 4. Fix Camargo GenerativeLSTM's unpinned-HTTP git dependency (`git+http://github.com/Mcamargo85/support_modules.git`) before relying on it for training.
-5. Once a dataset exists, run the short empirical timing pilot (a few epochs, smallest dataset, one model per framework group) to get a real compute estimate before scaling to the full 9-model × 5-dataset matrix.
+5. Run the short empirical timing pilot (a few epochs, smallest dataset i.e. Sepsis or Helpdesk, one model per framework group) now that both the dataset pipeline and the dependency groups are confirmed working — get a real compute estimate before scaling to the full 9-model × 5-dataset matrix.
+6. Pin exact dependency versions for `torch`/`torch-hf` (currently floor-only) once Phase 3 settles real training hardware/CUDA target.

@@ -7,13 +7,22 @@ authors = [
 ]
 # Phase 1 audit (9-model roster): A1/A2 need TensorFlow; A4/A5/A7/B1/B2 need
 # plain PyTorch; A6 additionally needs HuggingFace transformers; A3
-# additionally needs DGL. <3.14 keeps all frameworks' current wheels available.
-requires-python = ">=3.11,<3.14"
+# additionally needs DGL. Upper bound is <3.13, not <3.14: TensorFlow 2.19
+# ships no wheels for CPython 3.13 (cp311/cp312 only, confirmed via a Phase 2
+# smoke test) - every other framework in the roster supports 3.12 fine, so
+# the project standardizes on 3.12 rather than fragmenting into per-framework
+# Python versions.
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "pandas>=2.0",
     "numpy>=1.26",
     "scikit-learn>=1.4",
     "pyyaml>=6.0",
+    # Standard process-mining library, used for XES parsing (Phase 2 data
+    # pipeline) rather than a hand-rolled parser.
+    "pm4py>=2.7",
+    # Parquet engine for the processed-dataset cache (scripts/prepare_dataset.py).
+    "pyarrow>=15.0",
 ]
 
 [project.optional-dependencies]
@@ -29,16 +38,36 @@ torch = [
 ]
 # A6 LUPIN only. Separate group: adds a BERT checkpoint download dependency
 # not needed by any other model.
+# NOTE: transformers>=5's minimum torch requirement (2.5) is only a *runtime*
+# check inside the library, not declared in its packaging metadata - uv's
+# resolver has no visibility into it and will happily pick an older torch
+# (confirmed: it silently picked 2.3.0 and transformers then disabled its own
+# PyTorch backend at import time). Floor pinned explicitly here to compensate.
 torch-hf = [
-    "torch>=2.3",
+    "torch>=2.5",
     "transformers>=4.38",
 ]
-# A3 RLHGNN only. Separate group: DGL has its own version-matching
-# constraints against torch/CUDA, kept isolated so a bad DGL install can't
-# block the other PyTorch models.
+# A3 RLHGNN only. Separate group: dgl==2.2.1's PyPI wheel bundles a
+# precompiled C++ "graphbolt" extension for specific torch builds only
+# (confirmed by inspecting the wheel: 2.1.0-2.1.2, 2.2.0-2.2.2, 2.3.0 - NOT
+# whatever `torch>=2.3` unpinned resolves to today, e.g. 2.13.0, which
+# fails at import with a missing-DLL error). Pinned exactly to the newest
+# version dgl actually ships a binary for. Kept isolated in its own group so
+# this pin never affects the other PyTorch models.
 torch-dgl = [
-    "torch>=2.3",
-    "dgl",
+    "torch==2.3.0",
+    "dgl==2.2.1",
+    # dgl's graphbolt module imports torchdata.datapipes, an API removed in
+    # newer torchdata releases (confirmed: torchdata 0.11 raises
+    # ModuleNotFoundError). Pin to the last release still shipping it.
+    "torchdata==0.7.1",
+    # dgl's compiled extensions were built against NumPy 1.x; NumPy 2.x
+    # triggers an ABI warning (not yet confirmed fatal, but avoid pending
+    # further verification).
+    "numpy<2",
+    # dgl's graphbolt.impl.ondisk_metadata imports pydantic at runtime but
+    # doesn't declare it as a dependency - a packaging bug in dgl itself.
+    "pydantic",
 ]
 
 [dependency-groups]
@@ -52,3 +81,20 @@ pythonpath = ["src"]
 
 [tool.uv]
 package = false
+# Without this, uv resolves ONE universal lockfile that must satisfy every
+# extra simultaneously - confirmed empirically: torch-dgl's required
+# `torch==2.3.0` pin (dgl's compiled graphbolt extension only ships binaries
+# for specific old torch builds) silently forced the same pin onto torch-hf,
+# breaking transformers (which disables itself under torch<2.5). Declaring
+# these extras mutually exclusive lets uv resolve an independent set of
+# versions per extra instead of one shared set across all of them - matches
+# reality, since no single training run ever needs two of these frameworks
+# at once.
+conflicts = [
+    [
+        { extra = "tf" },
+        { extra = "torch" },
+        { extra = "torch-hf" },
+        { extra = "torch-dgl" },
+    ],
+]

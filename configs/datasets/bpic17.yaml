@@ -1,0 +1,21 @@
+# BPI Challenge 2017 — loan application process (large, branching)
+name: bpic17
+display_name: "BPI Challenge 2017"
+source:
+  doi: "10.4121/uuid:5f3067df-f10b-45da-b98b-86ae4c7a310b"
+  landing_page: "https://data.4tu.nl/articles/dataset/BPI_Challenge_2017/12696884"
+  file: "BPI Challenge 2017.xes.gz"
+  format: xes_gz
+  approx_size_mb: 29.66
+raw_path: "data/raw/bpic17/BPI_Challenge_2017.xes.gz"
+processed_path: "data/processed/bpic17/"
+outcome_label: null  # outcome prediction dropped from this study
+split:
+  method: time_based_case_sort
+  train_frac: 0.64
+  val_frac: 0.16
+  test_frac: 0.20
+notes: >
+  Already used by the SuTraN/CRTP-LSTM repo (A4/A5 in the model roster) as
+  BPIC17 and BPIC17-DR variants — reusing it here directly supports the
+  Phase 3 baseline-reproduction check.

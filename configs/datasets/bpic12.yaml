@@ -1,0 +1,24 @@
+# BPI Challenge 2012 — loan application process (classic, well-studied loops)
+name: bpic12
+display_name: "BPI Challenge 2012"
+source:
+  doi: "10.4121/uuid:3926db30-f712-4394-aebc-75976070e91f"
+  landing_page: "https://data.4tu.nl/articles/dataset/BPI_Challenge_2012/12689204"
+  file: "BPI_Challenge_2012.xes.gz"
+  format: xes_gz
+  approx_size_mb: 3.34
+raw_path: "data/raw/bpic12/BPI_Challenge_2012.xes.gz"
+processed_path: "data/processed/bpic12/"
+outcome_label: null  # outcome prediction dropped from this study (see paper/related_work_model_audit.md Section C)
+split:
+  method: time_based_case_sort
+  # Cases sorted by start timestamp, then split by position (not randomly) to
+  # prevent temporal leakage (spec §6). Ratios follow the common PPM benchmark
+  # convention (e.g. Teinemaa et al. 2019).
+  train_frac: 0.64
+  val_frac: 0.16
+  test_frac: 0.20
+notes: >
+  Reused across multiple existing baseline repos in this project's model
+  roster; a well-known reference log for cross-checking preprocessing
+  correctness against the wider literature.

@@ -1,0 +1,25 @@
+# Sepsis Cases — hospital process (small, high rework/variability, natural outcome label)
+name: sepsis
+display_name: "Sepsis Cases - Event Log"
+source:
+  doi: "10.4121/uuid:915d2bfb-7e84-49ad-a286-dc35f063a460"
+  landing_page: "https://data.4tu.nl/articles/dataset/Sepsis_Cases_-_Event_Log/12707639"
+  file: "Sepsis Cases - Event Log.xes.gz"
+  format: xes_gz
+  approx_size_mb: 0.202
+  reported_stats:
+    cases: ~1000
+    events: ~15000
+    activities: 16
+raw_path: "data/raw/sepsis/Sepsis_Cases_Event_Log.xes.gz"
+processed_path: "data/processed/sepsis/"
+outcome_label: null  # outcome prediction dropped from this study, despite this log having a natural one (return-to-care)
+split:
+  method: time_based_case_sort
+  train_frac: 0.64
+  val_frac: 0.16
+  test_frac: 0.20
+notes: >
+  Smallest dataset in the roster — natural first target for the Phase 2/3
+  empirical timing pilot given its size, and for the Phase 6 one-dataset
+  pilot (spec §27's pilot-first rule).

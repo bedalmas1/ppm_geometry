@@ -1,0 +1,26 @@
+# BPI Challenge 2019 — purchase order handling (large, high variant count)
+name: bpic19
+display_name: "BPI Challenge 2019"
+source:
+  doi: "10.4121/uuid:d06aff4b-79f0-45e6-8ec8-e19730c248f1"
+  landing_page: "https://data.4tu.nl/articles/dataset/BPI_Challenge_2019/12715853"
+  file: "BPI_Challenge_2019.xes"
+  format: xes
+  approx_size_mb: 729
+  reported_stats:
+    cases: 251734
+    events: 1595923
+    activities: 42
+raw_path: "data/raw/bpic19/BPI_Challenge_2019.xes"
+processed_path: "data/processed/bpic19/"
+outcome_label: null  # outcome prediction dropped from this study
+split:
+  method: time_based_case_sort
+  train_frac: 0.64
+  val_frac: 0.16
+  test_frac: 0.20
+notes: >
+  Largest dataset in the roster (~729MB uncompressed XES). Already used by
+  the SuTraN/CRTP-LSTM repo (A4/A5), supporting the Phase 3 baseline
+  reproduction check. Size makes this the natural stress-test for the
+  preprocessing pipeline and the compute-timing pilot's upper bound.
