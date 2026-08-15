@@ -158,6 +158,47 @@ A1 (86.9%→72.9%), A2 (81.8%→63.5%), A4 (0.924→0.816), A5 (0.917→0.816) �
 - `configs/models/crtp_lstm.yaml`, `configs/experiments/crtp_lstm_helpdesk.yaml`
 - `results/helpdesk/crtp_lstm/{checkpoint.pt, val_metrics_by_prefix_length.csv, test_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
 
-## Next steps for the remaining 5 models
+## A3 — RLHGNN on Helpdesk
 
-Same pattern to repeat for A3 (RLHGNN), A6 (LUPIN), A7 (MLMME), and B1/B2 (in-house controlled Transformer): vendor or implement the architecture, write a data adapter onto this project's own splits (never the original repo's own preprocessing), train with paper-matched hyperparameters where documented, evaluate, and record a provenance manifest. Training runs are sequential (see STATUS.md decision log) given a single shared GPU (currently CPU-only PyTorch wheels — see STATUS.md's CUDA-target open question).
+### Why this integration needed the most up-front reading
+
+Unlike A1/A2/A4/A5, RLHGNN's own README describes a 3-stage pipeline (train 4 fixed graph configurations → train a DQN policy to pick a configuration per instance → retrain on the RL-selected hybrid graphs), and the repo ships no dependency file and no LICENSE at all (flagged in Phase 1). Before writing any adapter code, `main.py`, `build_graph.py`, `Train.py`, `model/model.py`, `MyDataset.py`, `data_process.py`, and `ProcessEventlog_one_graph.py` were all read in full, and the actual arXiv PDF (2507.02690) was fetched and read (not relied on from memory or the abstract alone) to confirm the reported hyperparameters and settle a scope question the repo's own argparse defaults left ambiguous (`num-epochs=50` in `Train.py`'s CLI default vs. "100 epochs, early stopping after 10" in the paper's Sec. V-B — the paper's number was used).
+
+### Scope decision: fixed "Comprehensive" graph, no RL/DQN structure selection
+
+RLHGNN's central technical contribution is instance-adaptive graph structure selection via a DQN trained as a separate Markov-Decision-Process stage (`env_train.py`/`final_policy.py`, both skipped here). This project drops that AutoML-style wrapper and always builds the richest of the paper's four fixed structures — the "Comprehensive" graph (forward + backward + repeat_next edges, `action=3`/`build_Bidirect_complex_graph` in the original repo). This is not an arbitrary simplification: the paper's own ablation (Table V) shows Comprehensive is the second-best-performing fixed structure on average (GMean 0.725 vs. the full RL policy's 0.731, F1 0.568 vs. 0.576) and the richest in representational power, so it keeps the core heterogeneous-GNN architecture (the paper's other main contribution: relation-specific GraphSAGE aggregation — LSTM for forward/backward, mean for repeat_next) while dropping only the selection mechanism around it. This matches this project's established pattern of dropping AutoML/hyperparameter-search layers elsewhere in the roster (e.g. A2's dropped 2000-model architecture search).
+
+A second, project-wide scope decision applies here too: **activity-only**. The original embeds one feature per raw event-log column it finds (activity, resource, plus two engineered/discretized timestamp features — inter-event duration and case-progression time, confirmed in `ProcessEventlog_one_graph.py` and the paper's Sec. IV-B/V-B). Per this project's consistent activity-only scope (spec-driven, applied to A1/A2/A4/A5 already), only the `activity` node feature is embedded; `feature_proj`'s input width is `hidden_dim` (one feature) instead of the original's `hidden_dim * num_features`.
+
+Unlike every LSTM/Transformer model in the roster, RLHGNN's graphs are **not padded to a fixed window** — each prefix becomes a graph with exactly as many nodes as the prefix is long (matching the original's own design), so `src/models/rlhgnn/adapter.py` builds one DGL heterograph per prefix row directly from `history`, rather than reusing any padding-based tensor encoding from the other adapters. Graph construction (forward/backward/repeat_next edge lists, including the `get_index_of_duplicate_elements`-based repeat-edge logic) was ported by hand from `build_graph.py` and verified with a smoke test against a hand-worked 4-node example (`['a','a','a','b']` → 6 `repeat_next` edges, matched by hand-tracing the original's two nested loops) before any real training.
+
+Architecture (`src/models/rlhgnn/model.py`) is a from-scratch reimplementation against the paper's Sec. IV-E equations and the repo's own `model/model.py`, not a verbatim copy — the repo has no LICENSE file at all (confirmed again at integration time; still an open item, see STATUS.md). Hyperparameters (`hidden_dim=128`, `num_layers=2`, `dropout=0.1`, `NAdam(lr=0.001)`, `batch_size=64`, up to 100 epochs with patience 10) match both the paper's Sec. V-B and the repo's own `Train.py` defaults.
+
+### A documented paper/code discrepancy (not silently resolved either way)
+
+The paper's prose describes the readout as "focusing on the current activity position within the process instance" (implying the last node), but `model/model.py`'s actual code takes `dgl.max_nodes(hg, 'h')` — an elementwise max over **every** node in the graph. Since the code, not the prose, is what produced the paper's reported numbers, this project replicates the code's actual behavior (whole-graph max-pooling), and documents the discrepancy in `model.py`'s docstring rather than silently picking one interpretation.
+
+### Predictive metrics — no published-number comparison available for this dataset/model pair
+
+Same disclosed limitation as A4/A5: RLHGNN's own paper evaluates six BPI12/13/2020 logs, never Helpdesk. Kept on Helpdesk anyway for the controlled 5-way same-data architecture comparison.
+
+Result: same split as A1/A2/A4/A5 (confirmed identical `dataset_split_hash`). Training converged fast and stably (best checkpoint at epoch 2, early-stopped at epoch 12 of the 100-epoch budget, patience 10) — **best validation accuracy 86.4%**, but **test accuracy only 72.1% micro / 54.6% macro-across-k** (`f1_weighted` micro 64.7%). Per-prefix-length breakdown (`results/helpdesk/rlhgnn/test_metrics_by_prefix_length.csv`) shows a sharp dip at k=1 (43.4% accuracy on 916 instances) sandwiched between strong k=0 and k=2 accuracy (85.0%, 81.6%) — a pattern not seen this sharply in A1/A2/A4/A5's per-k curves, plausibly because RLHGNN's very short prefix graphs (1-2 nodes) give its GraphSAGE aggregators little structure to work with, an architecture-specific weakness worth a closer look once the Phase 4/5 geometric analysis is running.
+
+### The val/test gap, now confirmed a FIFTH time
+
+A1 (86.9%→72.9%), A2 (81.8%→63.5%), A4 (0.924→0.816), A5 (0.917→0.816), now **A3 (86.4%→72.1%)** — five models, five architectures (Transformer classifier, stacked LSTM classifier, Transformer encoder-decoder, direct BiLSTM, heterogeneous GNN), two objectives, two metric families, one dataset/split, one relentlessly consistent pattern. RLHGNN's numbers land almost exactly on top of A1's (86.9/72.9 vs. 86.4/72.1) despite a completely unrelated architecture family (graph neural network vs. Transformer) — this is about as strong as within-Helpdesk evidence for the temporal-distribution-shift explanation can get without a second dataset.
+
+### z_t extraction readiness
+
+`model.encode(hg)` returns the graph-level max-pooled node embedding (batch, 128), confirmed `(3, 128)` against the trained checkpoint. Architecturally distinct from every other model in the roster: it is the only one whose z_t summarizes the *entire* prefix graph via a symmetric pooling operation (max over all nodes) rather than reading out a designated last-position/last-token hidden state — worth flagging explicitly in the Phase 5 geometry write-up, since this could plausibly interact with representation geometry differently (e.g. permutation-invariance-adjacent properties that the sequential models don't share).
+
+### Artifacts produced
+
+- `src/models/rlhgnn/{model.py, adapter.py}` — **no LICENSE file included**, since the source repo ships none (disclosed in both files' docstrings, tracked in STATUS.md)
+- `experiments/train_rlhgnn.py`
+- `configs/models/rlhgnn.yaml`, `configs/experiments/rlhgnn_helpdesk.yaml`
+- `results/helpdesk/rlhgnn/{checkpoint.pt, test_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
+
+## Next steps for the remaining 4 models
+
+Same pattern to repeat for A6 (LUPIN), A7 (MLMME), and B1/B2 (in-house controlled Transformer): vendor or implement the architecture, write a data adapter onto this project's own splits (never the original repo's own preprocessing), train with paper-matched hyperparameters where documented, evaluate, and record a provenance manifest. Training runs are sequential (see STATUS.md decision log) given a single shared GPU (currently CPU-only PyTorch wheels — see STATUS.md's CUDA-target open question).

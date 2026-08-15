@@ -1,0 +1,16 @@
+# A3 RLHGNN hyperparameters (activity-only scope, fixed "Comprehensive"
+# graph structure - see src/models/rlhgnn/model.py's docstring). Values
+# taken directly from the paper (arXiv:2507.02690, Sec. V-B) and confirmed
+# against the repo's own Train.py argparse defaults, not guessed.
+name: rlhgnn
+family: A
+objective: next_event
+hidden_dim: 128
+dropout: 0.1
+num_layers: 2
+batch_size: 64
+learning_rate: 0.001
+epochs: 100
+patience: 10
+lr_plateau_factor: 0.5
+lr_plateau_patience: 5

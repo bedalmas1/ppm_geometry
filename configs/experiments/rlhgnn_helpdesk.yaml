@@ -1,0 +1,7 @@
+# Family A: A3 RLHGNN on Helpdesk - same dataset as A1/A2/A4/A5. RLHGNN's
+# own paper never evaluated Helpdesk (its 6 datasets are all BPI12/13/2020
+# variants), so this pairing has no published number to reproduce either;
+# kept for the controlled same-data cross-architecture comparison.
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/rlhgnn.yaml
+seed: 42
