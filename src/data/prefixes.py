@@ -45,3 +45,30 @@ def make_next_activity_prefixes(df: pd.DataFrame) -> pd.DataFrame:
                 }
             )
     return pd.DataFrame(rows, columns=["case_id", "history", "k", "next_act"])
+
+
+EOS = "<EOS>"
+
+
+def make_suffix_prefixes(df: pd.DataFrame) -> pd.DataFrame:
+    """One row per (history, suffix) pair for full-suffix models (A4 SuTraN,
+    A5 CRTP-LSTM, B2). For a case with activities [a0..a_{T-1}], emits, for
+    i in 0..T-1: history=[a0..ai] (prefix length i+1), suffix=activities
+    after ai plus a trailing EOS token. The last prefix (i=T-1, the complete
+    case) has suffix=[EOS] only - teaching the model to recognize a
+    completed case, following SuTraN's own prefix-suffix definition (its
+    README's Table 2)."""
+    rows = []
+    for case_id, group in df.groupby(CASE_ID, sort=False):
+        acts = [normalize_activity(a) for a in group[ACTIVITY].tolist()]
+        n = len(acts)
+        for i in range(n):
+            rows.append(
+                {
+                    "case_id": case_id,
+                    "history": acts[: i + 1],
+                    "k": i,
+                    "suffix": acts[i + 1 :] + [EOS],
+                }
+            )
+    return pd.DataFrame(rows, columns=["case_id", "history", "k", "suffix"])

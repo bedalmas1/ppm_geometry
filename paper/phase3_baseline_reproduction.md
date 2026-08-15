@@ -92,6 +92,41 @@ Confirmed the `prefix_representation` (final LSTM layer, 100-dim) is retrievable
 - `results/helpdesk/generative_lstm/{checkpoint.weights.h5, test_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
 - Refactored `src/data/prefixes.py`: the (history, k, next_act) prefix-generation logic used by both A1 and A2 is now shared, not duplicated — verified via a regression check that A1's numbers were unchanged after the refactor.
 
-## Next steps for the remaining 7 models
+## A4 — SuTraN on Helpdesk
 
-Same pattern to repeat for A3 (RLHGNN), A4/A5 (SuTraN/CRTP-LSTM), A6 (LUPIN), A7 (MLMME), and B1/B2 (in-house controlled Transformer): vendor or implement the architecture, write a data adapter onto this project's own splits (never the original repo's own preprocessing), train with paper-matched hyperparameters where documented, evaluate, and record a provenance manifest. Training runs are sequential (see STATUS.md decision log) given a single shared GPU.
+### Scope decision: activity-only, and why it's stricter than "NDA"
+
+SuTraN's original architecture (both its DA and NDA variants) is a multi-task encoder-decoder: it jointly predicts the activity suffix, the timestamp ("time till next event") suffix, and a scalar remaining-runtime value. This project implements **activity-suffix prediction only** — and critically, this required removing timestamp *inputs* to the decoder, not just the timestamp *output heads*. The reason: NDA's timestamp inputs at inference time are themselves autoregressively generated from the model's own previous timestamp *prediction* (each new decoding step consumes the model's own last time estimate as a feature). Dropping only the output head while keeping timestamp inputs would leave no way to produce those inputs at real inference time. So every model in this project's roster ends up predicting **activities only** — a deliberately homogeneous target family across A1/A2/A4 (and, going forward, A5/A6/A7/B1/B2), not a per-model ad-hoc simplification.
+
+Architecture and hyperparameters (`d_model=32`, `num_prefix_encoder_layers=4`, `num_decoder_layers=4`, `num_heads=8`, `d_ff=128`, `dropout=0.2`, `batch_size=128`, `AdamW(lr=0.0002, weight_decay=0.0001)`, `ExponentialLR(gamma=0.96)`, up to 200 epochs with patience 24) are taken directly from the repo's own `TRAIN_EVAL_SUTRAN_NDA.py`, not guessed. The core Transformer building blocks (multi-head attention, position-wise feed-forward, encoder/decoder layers, sinusoidal positional encoding) are vendored unmodified from `SuTraN/layers.py` — only the top-level model class is new, implementing the activity-only encoder-decoder.
+
+### A real architectural bug caught by smoke-testing before the real run
+
+A synthetic-tensor smoke test (following this project's now-standard practice of testing model wiring before spending real training time) caught a genuine shape-mismatch crash in cross-attention during autoregressive generation. Root cause: the vendored attention code's mask-broadcasting logic implicitly assumes the decoder's query length always equals the encoder's key length — true during teacher-forced training (both padded to the same length) but false during naive step-by-step incremental decoding (query length 1, 2, 3, ... while the encoder stays fixed-length). The original repo avoids this by decoding with a **fixed full-window-length decoder input at every step** (future positions held as padding, read out one position at a time via the causal mask) rather than growing the sequence dynamically — `model.py`'s `generate()` was rewritten to match this, and the smoke test then passed cleanly. A second, more mundane fix: the original repo pads prefix and suffix tensors to one **shared** `window_size`, not independent max lengths per side — using two independent max lengths (an earlier version of this adapter) breaks the same mask-broadcast for a related reason. Both fixes are documented in the code, not just here.
+
+### Predictive metrics — no published-number comparison available for this dataset/model pair
+
+Unlike A1/A2, **SuTraN's own paper never evaluated Helpdesk** (it used BPIC17, BPIC17-DR, BPIC19, and a proprietary BAC log) — Helpdesk was chosen anyway, consistent with A1/A2, to keep a controlled three-way architecture comparison on identical data. This means there is no published number to reproduce here; that's a disclosed limitation of this specific integration; a genuine comparison would require running on BPIC17/BPIC19 (logged as a later task, not blocking).
+
+Result: trained to convergence (early-stopped at epoch 43 of a 200-epoch budget, smooth/stable training, no instability). Validation-set autoregressive generation: **0.924 mean normalized Damerau-Levenshtein similarity**. Test-set: **0.816**.
+
+### The val/test gap, now confirmed a third time, across objectives and metrics
+
+This is the same qualitative pattern flagged for A1 (86.9%→72.9% accuracy) and A2 (81.8%→63.5% accuracy) — but SuTraN is a genuinely different case: a different prediction objective (full-suffix generation, not next-activity classification) evaluated with a completely different metric (normalized Damerau-Levenshtein similarity over autoregressively-generated suffixes, not classification accuracy). Seeing the same validation-to-test degradation recur here, on the same dataset/split, across 3 architectures, 2 objectives, and 2 metric families, is now much stronger evidence that this reflects a genuine property of the Helpdesk log under a strict, leakage-safe chronological split — not an artifact specific to any one model's training dynamics or evaluation protocol. This has crossed the threshold from "worth watching" to "should be its own analysis" (see STATUS.md's updated open questions).
+
+### z_t extraction readiness
+
+`model.encode(prefix_tokens, prefix_pad_mask)` returns the per-prefix-position encoder output (`batch × window_size × d_model`, confirmed `(3, 15, 32)` on a smoke check against the trained checkpoint) — the cleanest z_t extraction point found across every model audited (Phase 1), now confirmed working end-to-end post-training.
+
+### Artifacts produced
+
+- `src/models/sutran/{layers.py, model.py, adapter.py, LICENSE-sutran.txt}`
+- `src/data/prefixes.py` extended with `make_suffix_prefixes` (shared by A4/A5/B2) and an `EOS` constant
+- `src/evaluation/suffix_metrics.py` — normalized Damerau-Levenshtein similarity, unit-tested against hand-worked cases (also the metric spec §8.8 calls for in the Phase 8 future-equivalence study — implemented once, reused later)
+- `experiments/train_sutran.py`, `scripts/eval_sutran_val_dl.py` (one-off follow-up: val-set DL-similarity from an already-trained checkpoint, no retraining)
+- `configs/models/sutran.yaml`, `configs/experiments/sutran_helpdesk.yaml`
+- `results/helpdesk/sutran/{checkpoint.pt, test_metrics_by_prefix_length.csv, val_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
+
+## Next steps for the remaining 6 models
+
+Same pattern to repeat for A3 (RLHGNN), A5 (CRTP-LSTM, same repo as A4 — can reuse the suffix-prefix adapter pattern and DL-similarity metric directly), A6 (LUPIN), A7 (MLMME), and B1/B2 (in-house controlled Transformer): vendor or implement the architecture, write a data adapter onto this project's own splits (never the original repo's own preprocessing), train with paper-matched hyperparameters where documented, evaluate, and record a provenance manifest. Training runs are sequential (see STATUS.md decision log) given a single shared GPU (currently CPU-only PyTorch wheels — see STATUS.md's CUDA-target open question).

@@ -1,0 +1,8 @@
+# Family A: A4 SuTraN on Helpdesk. Same dataset as A1/A2 (direct
+# architecture comparison on identical data/splits), but note SuTraN's own
+# paper never evaluated Helpdesk (it used BPIC17/BPIC17-DR/BPIC19/BAC) - so
+# unlike A1/A2, there is no published number to compare against here. See
+# paper/phase3_baseline_reproduction.md for the disclosed reasoning.
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/sutran.yaml
+seed: 42
