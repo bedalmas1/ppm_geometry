@@ -1,0 +1,7 @@
+# Family A: A5 CRTP-LSTM on Helpdesk - same dataset as A1/A2/A4. SuTraN's
+# own paper never evaluated Helpdesk (see A4's note), so this pairing has
+# no published number to reproduce either; kept for the controlled
+# same-data architecture comparison.
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/crtp_lstm.yaml
+seed: 42

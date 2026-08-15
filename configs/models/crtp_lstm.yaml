@@ -1,0 +1,16 @@
+# A5 CRTP-LSTM hyperparameters (activity-only scope - see
+# src/models/crtp_lstm/model.py's docstring). All values taken directly
+# from the repo's own TRAIN_EVAL_CRTP_LSTM_ND.py, not guessed.
+name: crtp_lstm
+family: A
+objective: full_suffix
+d_model: 80
+dropout: 0.2
+num_shared_lstm_layers: 1
+num_dedicated_lstm_layers: 1
+batch_size: 128
+epochs: 500
+learning_rate: 0.002
+lr_plateau_factor: 0.5
+lr_plateau_patience: 16
+patience: 24

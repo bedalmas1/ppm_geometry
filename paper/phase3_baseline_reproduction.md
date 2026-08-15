@@ -127,6 +127,37 @@ This is the same qualitative pattern flagged for A1 (86.9%→72.9% accuracy) and
 - `configs/models/sutran.yaml`, `configs/experiments/sutran_helpdesk.yaml`
 - `results/helpdesk/sutran/{checkpoint.pt, test_metrics_by_prefix_length.csv, val_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
 
-## Next steps for the remaining 6 models
+## A5 — CRTP-LSTM on Helpdesk
 
-Same pattern to repeat for A3 (RLHGNN), A5 (CRTP-LSTM, same repo as A4 — can reuse the suffix-prefix adapter pattern and DL-similarity metric directly), A6 (LUPIN), A7 (MLMME), and B1/B2 (in-house controlled Transformer): vendor or implement the architecture, write a data adapter onto this project's own splits (never the original repo's own preprocessing), train with paper-matched hyperparameters where documented, evaluate, and record a provenance manifest. Training runs are sequential (see STATUS.md decision log) given a single shared GPU (currently CPU-only PyTorch wheels — see STATUS.md's CUDA-target open question).
+### Mechanism: direct (non-autoregressive) prediction via left-padding + bidirectional LSTM
+
+CRTP-LSTM's defining idea (per its title, "A Direct Data Aware LSTM ... for Complete Remaining Trace ... Prediction") is that it needs **no autoregressive decoding loop at all**, unlike A4 SuTraN. The mechanism: the prefix is fed to a bidirectional LSTM as a **left-padded** sequence — real prefix events pinned to the *end* of the fixed `window_size` window, with padding at the start (the opposite of A1/A2/A4's right-padding). Because the LSTM is bidirectional, every output position has access to the entire prefix via the backward pass, regardless of how short the real prefix is. This lets the model directly regress onto *all* suffix positions in a single forward pass — output position i is trained against the i-th future event (the same right-padded suffix target convention A4 already uses) — with no step-by-step generation required at either train or eval time.
+
+This made A5 the fastest integration so far: the adapter reuses A4's vocabulary and suffix-target encoding directly (`models.sutran.adapter.Vocab`/`build_vocab`/`encode_training_suffixes`) via import, adding only one new piece — `encode_prefixes_left_padded`. No `generate()` method, no teacher-forcing input construction; the training loop is a plain classification loop over `(prefix_tokens_left_padded, suffix_targets)` pairs, evaluated identically at train and test time.
+
+### Scope decision: activity-only (same rationale as A4)
+
+The original architecture has a second dedicated bidirectional-LSTM branch + head predicting a remaining-runtime suffix, dropped here for the same reason as A4: this project's roster predicts activities only, consistently, everywhere. Hyperparameters (`d_model=80`, `dropout=0.2`, one shared + one dedicated BiLSTM layer, `NAdam(lr=0.002)`, `ReduceLROnPlateau(factor=0.5, patience=16)`, early-stop patience 24, up to 500 epochs) are taken directly from the repo's own `TRAIN_EVAL_CRTP_LSTM_ND.py`. The activity-embedding size uses the repo's own formula (`min(600, round(1.6 · n^0.56))`), applied to this project's own (smaller) vocabulary.
+
+### Results
+
+Trained on Helpdesk, same split as A1/A2/A4 (confirmed identical `dataset_split_hash`). Converged fast — best checkpoint found around epoch 1, early-stopped at epoch 25 (patience 24 from the best epoch). No published-number comparison available here either (same reason as A4 — SuTraN's repo/paper never evaluated Helpdesk). Result: **0.917 validation / 0.816 test** mean normalized DL-similarity — remarkably close to A4 SuTraN's 0.924/0.816 despite a completely different architecture (direct bidirectional LSTM vs. autoregressive Transformer decoder).
+
+### The val/test gap, now confirmed a fourth time
+
+A1 (86.9%→72.9%), A2 (81.8%→63.5%), A4 (0.924→0.816), A5 (0.917→0.816) — four models, three architectures... no, four architectures now (Transformer classifier, stacked LSTM classifier, Transformer encoder-decoder, direct bidirectional LSTM), two objectives, two metric families, one dataset/split, one consistent qualitative pattern. This is a strong, well-replicated finding at this point.
+
+### z_t extraction readiness
+
+`model.encode(prefix_tokens_left_padded)` returns the shared BiLSTM's output (`batch × window_size × d_model`, confirmed `(3, 15, 80)` against the trained checkpoint). Because of left-padding, position `window_size - 1` always corresponds to where the last real prefix event sits — the natural one-vector-per-prefix summary representation for Phase 4, regardless of actual prefix length. Documented explicitly since this differs structurally from A1/A4 (where every position of a single forward pass already corresponds to a prefix step) — CRTP-LSTM needs one forward pass *per prefix length* to get that length's z_t, same as every other model's Phase 4 extraction will do anyway via the shared `make_suffix_prefixes`/`make_next_activity_prefixes` row-per-prefix-length convention.
+
+### Artifacts produced
+
+- `src/models/crtp_lstm/{model.py, adapter.py, LICENSE-sutran-repo.txt}`
+- `experiments/train_crtp_lstm.py`
+- `configs/models/crtp_lstm.yaml`, `configs/experiments/crtp_lstm_helpdesk.yaml`
+- `results/helpdesk/crtp_lstm/{checkpoint.pt, val_metrics_by_prefix_length.csv, test_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
+
+## Next steps for the remaining 5 models
+
+Same pattern to repeat for A3 (RLHGNN), A6 (LUPIN), A7 (MLMME), and B1/B2 (in-house controlled Transformer): vendor or implement the architecture, write a data adapter onto this project's own splits (never the original repo's own preprocessing), train with paper-matched hyperparameters where documented, evaluate, and record a provenance manifest. Training runs are sequential (see STATUS.md decision log) given a single shared GPU (currently CPU-only PyTorch wheels — see STATUS.md's CUDA-target open question).
