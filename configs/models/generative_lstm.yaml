@@ -1,0 +1,20 @@
+# A2 Camargo GenerativeLSTM hyperparameters (activity-only scope - see
+# src/models/generative_lstm/model.py's docstring for the full list of scope
+# decisions vs. the original multi-task/pretrained-embedding repo).
+# lstm_size/embed_dim taken from the repo's own dg_training.py hyperparameter
+# search space ({50,100} and {5,10,15} respectively - upper/middle values,
+# not guessed). optimizer/dropout match the repo's hardcoded (non-searched)
+# defaults for the Nadam branch. batch_size/epochs match dg_training.py's
+# defaults; early stopping (patience=40) and ReduceLROnPlateau (patience=10)
+# match the original's callbacks exactly.
+name: generative_lstm
+family: A
+objective: next_event
+embed_dim: 10
+lstm_size: 100
+dropout: 0.2
+batch_size: 32
+epochs: 200
+learning_rate: 0.002
+early_stopping_patience: 40
+reduce_lr_patience: 10

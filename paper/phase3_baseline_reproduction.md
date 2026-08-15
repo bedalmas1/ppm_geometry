@@ -56,6 +56,42 @@ Confirmed the `prefix_representation` (GlobalAveragePooling1D, 36-dim) layer is 
 - `configs/models/process_transformer.yaml`, `configs/experiments/pt_helpdesk.yaml`
 - `results/helpdesk/process_transformer/{checkpoint.weights.h5, test_metrics_by_prefix_length.csv, manifest.json}` (gitignored — regenerate via the experiment script)
 
-### Next steps for the remaining 8 models
+## A2 — Camargo et al. GenerativeLSTM on Helpdesk
 
-Same pattern to repeat for A2 (Camargo GenerativeLSTM), A3 (RLHGNN), A4/A5 (SuTraN/CRTP-LSTM), A6 (LUPIN), A7 (MLMME), and B1/B2 (in-house controlled Transformer): vendor or implement the architecture, write a data adapter onto this project's own splits (never the original repo's own preprocessing), train with paper-matched hyperparameters where documented, evaluate, and record a provenance manifest. Training runs are sequential (see STATUS.md decision log) given a single shared GPU.
+### Scope decision: activity-only, not the full multi-task/pretrained-embedding pipeline
+
+The original repo's `model_shared_cat` architecture is considerably more involved than ProcessTransformer's: three input branches (activity, role, time) feeding two stacked LSTM layers each, jointly predicting next-activity, next-role, and next-time; activity/role embeddings are **pretrained separately** (a word2vec-style skip-gram phase, `embedding_training.py`) and frozen before the main model trains; resources are clustered into "roles" via a separate algorithm (`support_modules/role_discovery.py`); and the paper's own experiments select between architecture variants (`shared_cat`, `concatenated`, `specialized`) via a large Bayesian/random hyperparameter search (2000 models per the paper's Section 4.1).
+
+Fully reproducing all of that is a substantially larger undertaking than the geometry study needs. Consistent with how A1 was scoped (next-event only, not the time/remaining-time heads ProcessTransformer's own repo also supports), **A2 implements only the activity branch**: embed → LSTM(return_sequences=True) → BatchNormalization → LSTM(return_sequences=False, named `prefix_representation`) → Dense(softmax). This is architecturally exactly `model_shared_cat.py`'s `l1_c1 → batch1 → l2_c1 → act_output` path, with two changes:
+- **No role branch** — this project's common event-log schema (`src/data/schema.py`) deliberately carries only case_id/activity/timestamp, not resource/role, so every model in the roster sees identical input data (spec §6); adding a role branch for this one model alone would break that.
+- **Trainable embeddings, not pretrained/frozen ones** — avoids reproducing the separate word2vec-style pretraining stage.
+
+Hyperparameters (`lstm_size=100`, `embed_dim=10`, `dropout=0.2`, `batch_size=32`, `epochs=200` with early stopping patience 40 and ReduceLROnPlateau patience 10, `Nadam(lr=0.002)`) are all taken directly from the repo's own `dg_training.py` defaults/search-space (not guessed) — see `configs/models/generative_lstm.yaml`'s comments for the exact provenance of each value.
+
+**The "insecure HTTP git dependency" flagged in Phase 1 resolved itself**: the repo's `environment.yml` lists `git+http://github.com/Mcamargo85/support_modules.git`, but the repo *also* vendors its own `support_modules/` directory locally, which is what the code actually imports when run from the repo root. Since this project vendors the architecture code directly (same strategy as A1) rather than installing the repo's own environment, that dependency was never actually needed.
+
+### Predictive metrics vs. published numbers
+
+Two reference points, both real (not guessed): the Camargo et al. BPM 2019 paper itself reports **78.9% next-event accuracy on Helpdesk** (its Table 4, "Our approach" row — evaluated with a 70/30 train/validation split, not explicitly stated as chronological); ProcessTransformer's paper separately cites a third-party re-implementation of Camargo et al. at **76.51%** (via Rama-Maneiro et al.'s benchmark survey).
+
+This project's activity-only GenerativeLSTM: **best validation accuracy 81.8%** (training was numerically smooth — a monotonic loss curve, unlike A1's instability — early-stopped at epoch 45), but **test accuracy only 63.5% micro / 59.1% macro-across-k**, on the exact same 64/16/20 chronological split as A1 (confirmed by an identical `dataset_split_hash` in both models' manifests).
+
+### A notable cross-model finding
+
+**The same validation-vs-test gap pattern that appeared for A1 (Transformer) recurs here for A2 (LSTM)** — two architecturally very different models, one with unstable training (A1 at lr=0.01) and one with smooth monotonic convergence (A2), both show validation accuracy in the low-to-high 80s and test accuracy in the 60s on the identical split. This is stronger evidence for the temporal-distribution-shift explanation floated in A1's write-up than for the lr-instability explanation: if the gap were purely an A1-specific optimization artifact, it should not reappear in a cleanly-converged, differently-architected model trained on the same data. Notably, **both models' validation accuracy meets or exceeds the original papers' own reported (non-strictly-chronological, or ambiguously-split) numbers** — suggesting this project's stricter, leakage-safe chronological split is surfacing a real generalization gap that looser split methodologies do not expose. Worth watching whether this recurs as more models/datasets are integrated (see STATUS.md open questions) — if it does, it becomes a genuine, reportable methodological finding in its own right, not just a reproduction caveat.
+
+### z_t extraction readiness
+
+Confirmed the `prefix_representation` (final LSTM layer, 100-dim) is retrievable by name from the trained model, exactly as A1's `prefix_representation` (GlobalAveragePooling1D, 36-dim) is — Phase 4 can use the same code pattern for both models despite their different architectures.
+
+### Artifacts produced
+
+- `src/models/generative_lstm/{model.py, adapter.py, LICENSE-generativelstm.txt}`
+- `experiments/train_generative_lstm.py`
+- `configs/models/generative_lstm.yaml`, `configs/experiments/lstm_helpdesk.yaml`
+- `results/helpdesk/generative_lstm/{checkpoint.weights.h5, test_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
+- Refactored `src/data/prefixes.py`: the (history, k, next_act) prefix-generation logic used by both A1 and A2 is now shared, not duplicated — verified via a regression check that A1's numbers were unchanged after the refactor.
+
+## Next steps for the remaining 7 models
+
+Same pattern to repeat for A3 (RLHGNN), A4/A5 (SuTraN/CRTP-LSTM), A6 (LUPIN), A7 (MLMME), and B1/B2 (in-house controlled Transformer): vendor or implement the architecture, write a data adapter onto this project's own splits (never the original repo's own preprocessing), train with paper-matched hyperparameters where documented, evaluate, and record a provenance manifest. Training runs are sequential (see STATUS.md decision log) given a single shared GPU.

@@ -1,0 +1,7 @@
+# Family A: A2 Camargo GenerativeLSTM on Helpdesk - same dataset as the
+# A1 ProcessTransformer pilot (configs/experiments/pt_helpdesk.yaml), giving
+# a direct Transformer-vs-LSTM comparison on identical data/splits, and the
+# same dataset the GenerativeLSTM repo's own README example uses.
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/generative_lstm.yaml
+seed: 42

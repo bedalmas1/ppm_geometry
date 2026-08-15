@@ -27,14 +27,10 @@ import numpy as np
 import pandas as pd
 from tensorflow.keras.utils import pad_sequences
 
-from data.schema import ACTIVITY, CASE_ID
+from data.prefixes import make_next_activity_prefixes
 
 PAD = "[PAD]"
 UNK = "[UNK]"
-
-
-def normalize_activity(name: str) -> str:
-    return str(name).lower().replace(" ", "-")
 
 
 @dataclass(frozen=True)
@@ -51,43 +47,29 @@ class Vocab:
         return len(self.y_word_dict)
 
 
-def build_vocab(train_df: pd.DataFrame) -> Vocab:
-    """Build x/y vocabularies from the TRAIN split only (see module docstring)."""
-    activities = sorted(train_df[ACTIVITY].map(normalize_activity).unique())
+def build_vocab(train_prefixes: pd.DataFrame) -> Vocab:
+    """Build x/y vocabularies from the TRAIN split's prefixes only (see
+    module docstring). `train_prefixes` is the output of
+    data.prefixes.make_next_activity_prefixes on the train split."""
+    activities = sorted({a for hist in train_prefixes["history"] for a in hist} | set(train_prefixes["next_act"]))
     x_word_dict = {PAD: 0, UNK: 1, **{a: i + 2 for i, a in enumerate(activities)}}
     y_word_dict = {a: i for i, a in enumerate(activities)}
     y_word_dict[UNK] = len(y_word_dict)  # reserved class for unseen test/val labels
     return Vocab(x_word_dict, y_word_dict)
 
 
-def make_prefixes(df: pd.DataFrame) -> pd.DataFrame:
-    """One row per (prefix, next-activity) pair, matching the original repo's
-    `_next_activity_helper_func` semantics exactly: for a case with events
-    [a0..a_{T-1}], emits (prefix=a0..ai, k=i, next_act=a_{i+1}) for
-    i in 0..T-2."""
-    rows = []
-    for case_id, group in df.groupby(CASE_ID, sort=False):
-        acts = [normalize_activity(a) for a in group[ACTIVITY].tolist()]
-        for i in range(len(acts) - 1):
-            rows.append(
-                {
-                    "case_id": case_id,
-                    "prefix": " ".join(acts[: i + 1]),
-                    "k": i,
-                    "next_act": acts[i + 1],
-                }
-            )
-    return pd.DataFrame(rows, columns=["case_id", "prefix", "k", "next_act"])
+# Re-exported so callers only need to import this module for the whole
+# ProcessTransformer data pipeline.
+make_prefixes = make_next_activity_prefixes
 
 
 def get_max_case_length(prefix_df: pd.DataFrame) -> int:
-    return int(prefix_df["prefix"].str.split().map(len).max())
+    return int(prefix_df["history"].map(len).max())
 
 
 def encode(prefix_df: pd.DataFrame, vocab: Vocab, max_case_length: int) -> tuple[np.ndarray, np.ndarray]:
     token_x = [
-        [vocab.x_word_dict.get(tok, vocab.x_word_dict[UNK]) for tok in prefix.split()]
-        for prefix in prefix_df["prefix"]
+        [vocab.x_word_dict.get(tok, vocab.x_word_dict[UNK]) for tok in hist] for hist in prefix_df["history"]
     ]
     token_x = pad_sequences(token_x, maxlen=max_case_length)
     token_y = np.array(
