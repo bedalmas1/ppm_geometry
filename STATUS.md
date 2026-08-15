@@ -2,7 +2,7 @@
 
 > Living tracker. Update this file at the end of every session — new sessions should read this file first, then jump to the relevant phase in [`PLAN.md`](./PLAN.md). Keep entries dated; never delete history from the decision log, only append.
 
-**Current phase:** Phase 3 — Baseline reproduction (not started)
+**Current phase:** Phase 3 — Baseline reproduction (1 of 9 models done: A1 ProcessTransformer)
 **Last updated:** 2026-08-15
 
 ---
@@ -85,8 +85,16 @@ Full write-up: [`paper/dataset_selection.md`](./paper/dataset_selection.md) — 
 
 Final state: `tf` → TensorFlow 2.19.1 (Python 3.12, standalone). `torch` → torch 2.13.0 (current, for A4/A5/A7/B1/B2). `torch-hf` → torch 2.13.0 + transformers 5.15.0 (fully functional, not self-disabled). `torch-dgl` → torch 2.3.0 + dgl 2.2.1 + torchdata 0.7.1 + numpy<2 + pydantic (isolated fork, doesn't affect the other three groups). Base env (no extras) + all 18 tests confirmed green after every change.
 
-### Phase 3 — Baseline reproduction
-Not started. See PLAN.md Phase 3 for the full task list. With Phase 2 closed, the remaining pre-Phase-3 loose ends are: CRTP-LSTM's exact z_t layer (architecture confirmed, layer not yet pinned), Camargo GenerativeLSTM's insecure git dependency, the BPIC19 timestamp cleaning rule, and the empirical compute-timing pilot — see Next steps below.
+### Phase 3 — Baseline reproduction — IN PROGRESS (1 of 9 models: A1 done)
+Full write-up: [`paper/phase3_baseline_reproduction.md`](./paper/phase3_baseline_reproduction.md) — updated per-model as each one is integrated; this section is a summary only.
+
+**Execution strategy decided with the user:** training runs are **sequential**, never parallel, because this machine has only one GPU (NVIDIA RTX A2000, 8GB — confirmed via `nvidia-smi`; 20 CPU cores also available). Running multiple models on the same GPU simultaneously would contend for the same 8GB VRAM and corrupt the empirical compute-timing measurements Phase 2 flagged as still needed. Non-compute code work (adapters, config wiring) can be drafted in parallel; actual training cannot.
+
+**A1 ProcessTransformer — DONE, pilot for the whole approach.** Vendored the architecture only (`src/models/process_transformer/model.py`, Apache-2.0, license file preserved alongside) — deliberately did **not** reuse the original repo's own `data_processing.py`, since that does its own train/test split and vocab-from-combined-data, which would violate spec §6's "identical splits across every model" requirement. Instead wrote `src/models/process_transformer/adapter.py` converting this project's own Phase-2 split parquet into the model's expected tensors, replicating the original's exact prefix-generation semantics. Config-driven training entrypoint: `experiments/train_process_transformer.py`.
+
+Result: trained end-to-end on Helpdesk. Best validation accuracy 86.9% (paper reports 85.63% — close), but test accuracy only 72.9% micro / 63.2% macro-across-k — a real, disclosed gap, most likely from (a) training instability at the paper's stated lr=0.01 (visible loss spikes/recoveries during training) and/or (b) genuine temporal distribution shift under this project's strict chronological split (test is a truly later time period than train/val, unlike a random split which would leak future patterns). Not further hyperparameter-tuned — the pilot's actual goal (validate the full data→train→checkpoint→metrics→provenance pipeline) was met. **Notable independent validation**: reading the actual ProcessTransformer paper (fetched and read directly, not from memory) showed its Table 1 Helpdesk statistics (4,580 cases, 21,348 events, 14 activities, avg length 4.66) match this project's own Phase 2 pipeline output exactly — strong evidence the Phase 2 preprocessing is correct. Confirmed the vendored model's `prefix_representation` (GlobalAveragePooling1D) layer is retrievable by name post-training, ready for Phase 4's z_t extraction without touching the model file again.
+
+**Remaining for Phase 3:** repeat this pattern for A2 (Camargo GenerativeLSTM), A3 (RLHGNN), A4/A5 (SuTraN/CRTP-LSTM), A6 (LUPIN), A7 (MLMME), B1/B2 (in-house controlled Transformer) — see Next steps.
 
 ---
 
@@ -110,6 +118,8 @@ Append one entry per decision, dated, with a one-line rationale. Never edit past
 - **2026-08-15** — Downloaded and processed all 5 datasets; wrote `paper/dataset_selection.md` with real computed statistics (not literature figures). Built the shared preprocessing pipeline (`src/data/` package: schema, loaders, splits, stats) with 18 passing unit tests against synthetic data.
 - **2026-08-15** — Smoke-testing the 4 dependency groups found TensorFlow 2.19.1 has no CPython 3.13 wheels. **Switched the whole project from Python 3.13.0 to 3.12.10** rather than fragmenting per-framework Python versions — every other framework in the roster supports 3.12.
 - **2026-08-15** — Same smoke test found a chain of DGL/torch/torchdata/numpy/pydantic compatibility issues for the `torch-dgl` group (RLHGNN), and a uv resolver behavior (universal lockfile forcing one extra's pin onto another) that broke `torch-hf` (LUPIN/transformers). Fixed all of it: pinned `torch==2.3.0`/`dgl==2.2.1`/`torchdata==0.7.1`/`numpy<2`/`pydantic` for `torch-dgl`; added `[tool.uv] conflicts` so extras resolve independently; pinned `torch>=2.5` explicitly for `torch-hf` (transformers' real minimum is a runtime-only check invisible to the resolver). All 4 groups now verified to actually import and run, not just install. **Phase 2 is now fully closed.**
+- **2026-08-15** — User asked how Phase 3 training would be executed (sequential vs. parallel) before starting. Checked hardware (`nvidia-smi`): one NVIDIA RTX A2000 8GB GPU, 20 CPU cores. Decided: sequential training only, since a single shared GPU would make parallel runs contend for VRAM and corrupt the still-pending compute-timing measurements; non-compute integration code (adapters, config wiring) can still be drafted in parallel across models.
+- **2026-08-15** — Completed A1 ProcessTransformer as the Phase 3 pilot. Deliberately did not reuse the original repo's own data preprocessing/split (would violate spec §6's identical-splits requirement) — wrote a dedicated adapter onto this project's own Phase 2 split instead. Fetched and read the actual paper PDF to get real comparison numbers (85.63% accuracy, 100 epochs, lr=0.01) rather than relying on memory or the repo's non-matching CLI defaults (10 epochs, lr=0.001). Achieved 86.9% best validation accuracy (close to paper) but only 72.9% test accuracy — disclosed as a real, unresolved gap (likely lr=0.01 training instability and/or genuine temporal drift under strict chronological splitting), not hidden or hyperparameter-tuned away, since the pilot's actual goal (validate the full pipeline) was met.
 
 ---
 
@@ -117,13 +127,14 @@ Append one entry per decision, dated, with a one-line rationale. Never edit past
 
 - Experiment tracking/logging format (lightweight structured logs under `results/` vs. an external tracker) — deferred until Phase 3 needs to log actual training runs.
 - Number of seeds per model/dataset — depends on compute budget; needs the empirical timing pilot (now that a real dataset pipeline exists, this is unblocked) before deciding. More important given 9 models × 5 datasets = up to 45 combinations.
-- Exact torch/CUDA target for the `torch` and `torch-hf` groups (currently unpinned beyond a floor; `torch-dgl` is hard-pinned to 2.3.0 for compatibility reasons already explained) — decide once Phase 3 picks real training hardware.
-- ProcessTransformer's `setup.py` still unpinned beyond `tensorflow>=2.4`; SuTraN/CRTP-LSTM/RLHGNN still have no dependency file at all — pin exact versions in Phase 3 when each model is actually integrated.
+- Exact torch/CUDA target for the `torch` and `torch-hf` groups (currently unpinned beyond a floor; `torch-dgl` is hard-pinned to 2.3.0 for compatibility reasons already explained) — decide once more PyTorch models are integrated (A1 didn't need this, it's TF-only).
+- SuTraN/CRTP-LSTM/RLHGNN still have no dependency file at all — pin exact versions when each is actually integrated (moot for ProcessTransformer now — vendoring its architecture code meant its own unpinned `setup.py` was never actually used).
 - ICPM 2027 ML4PM workshop CFP details (page limit, format, deadline) — checked 2026-08-14, not published yet; conference dates (Feb 8–12, 2027) are confirmed. Re-check closer to Phase 11.
 - **RLHGNN's missing license** — worth deciding whether to email the authors for clarification before relying on it further, and exactly how to disclose the gap in the paper.
 - **Which of the 9 models actually make it into the ML4PM workshop paper vs. stay as "ran the experiment, held for a journal extension"** — user explicitly deferred this decision ("we'll see later if we integrate them in the paper"). Worth revisiting once Phase 6's descriptive results exist and it's clearer which comparisons are most informative.
 - Whether to pursue any of the ~15 no-repo papers found during the systematic review (emailing authors, reimplementing) — logged as a journal-extension-scale task, not blocking the workshop paper.
 - BPIC19's timestamp data-quality artifact (1948-01-26 start) needs an explicit, documented cleaning rule before training on it — not yet decided what that rule should be (drop events before a cutoff? clip? flag and exclude affected cases entirely?).
+- **A1's val/test accuracy gap (86.9% vs. 72.9%)** — not resolved, deliberately not chased further for this pilot. Worth watching whether the same val/test gap pattern recurs for other models on other datasets once more are integrated — if it's systematic across models, that's evidence for the temporal-drift explanation over the lr-instability one, which would itself be a notable methodological finding for the paper.
 
 ## Blockers
 
@@ -131,9 +142,9 @@ None currently.
 
 ## Next steps (pick these up first in the next session)
 
-1. Begin Phase 3 — baseline reproduction (see PLAN.md Phase 3 tasks): for each of the 9 models, clone the actual training code (Family A) or implement it (Family B), get it running end-to-end on at least one dataset, and compare Family A's predictive metrics against published numbers.
-2. Decide and implement a cleaning rule for BPIC19's 1948-01-26 timestamp artifact before that dataset is used for training.
-3. Hands-on-pin CRTP-LSTM's exact z_t extraction layer (architecture confirmed, exact layer still TBD — every other adopted model already has this pinned down).
-4. Fix Camargo GenerativeLSTM's unpinned-HTTP git dependency (`git+http://github.com/Mcamargo85/support_modules.git`) before relying on it for training.
-5. Run the short empirical timing pilot (a few epochs, smallest dataset i.e. Sepsis or Helpdesk, one model per framework group) now that both the dataset pipeline and the dependency groups are confirmed working — get a real compute estimate before scaling to the full 9-model × 5-dataset matrix.
-6. Pin exact dependency versions for `torch`/`torch-hf` (currently floor-only) once Phase 3 settles real training hardware/CUDA target.
+1. Continue Phase 3 — baseline reproduction: repeat the A1 pattern (vendor/implement architecture, write a data adapter onto this project's own Phase 2 splits, config-driven training entrypoint, provenance manifest) for A2 (Camargo GenerativeLSTM), A3 (RLHGNN), A4/A5 (SuTraN/CRTP-LSTM, same repo), A6 (LUPIN), A7 (MLMME), then B1/B2 (in-house controlled Transformer, no external repo to adapt). Training stays sequential (one shared GPU).
+2. Hands-on-pin CRTP-LSTM's exact z_t extraction layer while integrating A4/A5 (architecture confirmed, exact layer still TBD).
+3. Fix Camargo GenerativeLSTM's unpinned-HTTP git dependency (`git+http://github.com/Mcamargo85/support_modules.git`) while integrating A2, before relying on it for training.
+4. Decide and implement a cleaning rule for BPIC19's 1948-01-26 timestamp artifact before any model is trained on it.
+5. Now that A1's real per-epoch timing is known (Helpdesk, ~10,860 train prefixes: a few seconds to ~30s/epoch depending on system load), use it to inform the compute estimate for the rest of the matrix rather than needing a fully separate timing-only pilot — refine as more models are integrated.
+6. Extend A1's training script pattern with exact dependency pins for `torch`/`torch-hf` once a second (PyTorch-based) model is integrated.

@@ -1,0 +1,6 @@
+# Family A pilot: A1 ProcessTransformer on Helpdesk (same dataset
+# ProcessTransformer's own paper evaluated on - directly supports the
+# Phase 3 reproduction check).
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/process_transformer.yaml
+seed: 42

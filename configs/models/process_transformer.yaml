@@ -1,0 +1,17 @@
+# A1 ProcessTransformer hyperparameters. embed_dim/num_heads/ff_dim match
+# get_next_activity_model()'s defaults. epochs/learning_rate match the
+# PAPER TEXT (Sec.5.2: "trained for 100 epochs ... learning rate of 10^-2"),
+# NOT the repo's own next_activity.py argparse defaults (10 epochs, lr=0.001)
+# - confirmed via direct PDF read that the repo's CLI defaults don't match
+# what the paper says it actually did. Using the paper's numbers since this
+# is a reproduction check. batch_size is not stated in the paper; kept at
+# the repo's default (12).
+name: process_transformer
+family: A
+objective: next_event
+embed_dim: 36
+num_heads: 4
+ff_dim: 64
+epochs: 100
+batch_size: 12
+learning_rate: 0.01
