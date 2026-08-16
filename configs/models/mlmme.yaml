@@ -1,0 +1,89 @@
+# A7 MLMME hyperparameters (activity-only scope, remaining-time head AND
+# input dropped - see src/models/mlmme/model.py's docstring for the full
+# scope-decision rationale and the resolved architectural questions
+# (generator/discriminator architecture, Gumbel-softmax training mechanism,
+# z_t definition)).
+#
+# hidden_size / num_layers / dropout / learning_rate / optimizer /
+# teacher-forcing ratio / gumbel temperatures / gradient-clip norm / epochs
+# / patience are all taken directly from the repo's own network.py /
+# preparation.py / main.py (cloned to a scratch location, read in full,
+# never added to this repo) and the paper's Sec. 5.2, not guessed:
+#   - hidden_size=200, num_layers=5, dropout=0.3: main.py's Encoder/
+#     Decoder/Discriminator construction (`hidden_size=200, num_layers=5`,
+#     `dropout=.3`).
+#   - learning_rate=5e-5, optimizer=RMSprop: main.py's
+#     `optimizerG = torch.optim.RMSprop(model.parameters(), lr=5e-5)`
+#     (same lr for optimizerD).
+#   - teacher_forcing_ratio=0.1: network.py's train_gan/train_mle calls
+#     (`teacher_forcing_ratio=0.1`), also stated in the paper's Sec. 5.2
+#     ("a probabilistic teacher forcing ratio of 0.1").
+#   - grad_clip_norm=1.0: network.py's `clip_grad_norm_(..., max_norm=1)`
+#     calls (both generator and discriminator), also paper Sec. 5.2
+#     ("clip the gradient norm of each layer to 1").
+#   - gumbel_tau_smooth=0.001: network.py's `one_hot_to_gumble_soft`
+#     (fixed, near-discrete perturbation for the "real" side seen by the
+#     discriminator - see model.py's `label_smooth_gumbel`).
+#   - gumbel_tau_anneal_base=0.9: network.py's `t = np.power(.9, i)`
+#     annealing schedule for the generator's own ("fake") output
+#     relaxation; paper Sec. 5.2 ("exponentially anneal ... from 0.9 to
+#     0"). gumbel_tau_floor=1e-3 is THIS project's own added numerical-
+#     stability safeguard (undocumented in the original, which would
+#     silently underflow tau towards 0 well before epoch 500 -
+#     gumbel_softmax at tau=0 divides by zero).
+#   - patience=30: paper Sec. 5.2 ("early stopping ... for 30 iterations")
+#     - reinterpreted here as a standard epochs-since-last-improvement
+#     counter (see model.py's docstring section (c) for why, vs. the
+#     repo's own every-5th-epoch/last-30-checks scheme, which checks less
+#     often and compares against a fixed 30-epochs-back mark rather than
+#     the best-so-far).
+#   - batch_size=128: preparation.py's `Preprocessing.run(self, input_path,
+#     batch_size=128)` default (also the value main.py's script path
+#     always uses, since it never overrides it).
+#
+# epochs=500 matches the paper's own budget (Sec. 5.2). A first attempt at
+# this ran into TWO measured constraints: (1) at ~135s/epoch (timed on this
+# project's CPU-only hardware - the two generator + two discriminator
+# forward passes per mini-batch make one MLMME epoch markedly more
+# expensive than this roster's other full-suffix models, see model.py's
+# docstring section (c)) a full 500-epoch run is ~18.75h; (2) this
+# project's execution environment kills long-running background training
+# processes at approximately the 60-minute mark regardless of health
+# (observed directly - a 40-epoch attempt was still actively improving its
+# checkpoint at the 52-minute mark, then terminated mid-run at ~60 minutes
+# with no crash/error of its own). A first, disclosed-and-superseded
+# result was reported at epochs=15 (~34 min, safely under the 60-min
+# limit, matching A6 LUPIN's own comparable compute-budget deviation) -
+# see STATUS.md's 2026-08-16 decision log for that number.
+#
+# 2026-08-16 (later same day): added checkpoint/resume support to
+# experiments/train_mlmme.py instead of accepting the 15-epoch cap as
+# final. After every epoch, full training state (both models, both
+# optimizers, loss/timing history, random/numpy/torch RNG state) is
+# written to <result_dir>/resume_state.pt; re-running the exact same
+# command picks back up at the next epoch rather than restarting.
+# Verified correct with a 2-epoch-then-resume-to-4-epoch test against an
+# isolated scratch result dir (confirmed epoch indices, tau-annealing
+# schedule, and RNG continuity all pick up exactly where the prior
+# invocation left off, not from epoch 0). This makes the full epochs=500
+# budget reachable via ~20 chunked invocations of ~25 epochs each
+# (~57 min/chunk, under the 60-min limit), each one a normal re-run of the
+# same command. patience=30 (paper's own value, Sec. 5.2 "early stopping
+# ... for 30 iterations") can now actually trigger before epoch 500 if
+# validation loss plateaus, unlike the epochs=15 run where it never had
+# the chance to.
+name: mlmme
+family: A
+objective: full_suffix
+hidden_size: 200
+num_layers: 5
+dropout: 0.3
+learning_rate: 0.00005
+teacher_forcing_ratio: 0.1
+grad_clip_norm: 1.0
+gumbel_tau_smooth: 0.001
+gumbel_tau_anneal_base: 0.9
+gumbel_tau_floor: 0.001
+batch_size: 128
+epochs: 500
+patience: 30

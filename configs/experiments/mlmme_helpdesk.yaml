@@ -1,0 +1,10 @@
+# Family A: A7 MLMME on Helpdesk - same dataset/split as A1-A6. Unlike
+# A4/A5/A6, MLMME's own SDM 2021 paper DOES evaluate Helpdesk (its Table 2:
+# average SDL 0.8411 for suffix prediction, using 1-best/beam-size-1 greedy
+# generation and its own 7:1:2 chronological split) - a genuine
+# published-number comparison point exists here, unlike A4/A5/A6 (see
+# paper/phase3_baseline_reproduction.md's A7 section for the full
+# comparison and caveats about the different split/preprocessing).
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/mlmme.yaml
+seed: 42
