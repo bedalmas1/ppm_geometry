@@ -1,0 +1,8 @@
+# Family B: B1 controlled Transformer (next-event) on Helpdesk. Same
+# dataset/split as every Family A model in the roster. First of the two
+# Family B controlled variants (B1 next-event here, B2 full-suffix still to
+# be built) that isolate objective from architecture per spec §5 - this
+# pair also feeds PLAN.md's Phase 6 pilot-first rule later.
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/controlled_transformer_next.yaml
+seed: 42

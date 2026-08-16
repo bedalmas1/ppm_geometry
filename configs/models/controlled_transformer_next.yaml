@@ -1,0 +1,21 @@
+# B1 controlled Transformer - Family B, next-event objective. This
+# project's own from-scratch encoder (not vendored from any Family A
+# paper), built on torch.nn.TransformerEncoder. Every field here except
+# `name`/`objective` defines the SHARED architecture/training-budget that
+# B2 (full-suffix, to be added next) must copy verbatim - do not tune this
+# file for B1 alone without also updating B2's config to match (spec §5's
+# controlled-comparison requirement depends on this).
+name: controlled_transformer_next
+family: B
+objective: next_event
+d_model: 64
+num_heads: 8
+num_layers: 4
+d_ff: 128
+dropout: 0.1
+batch_size: 128
+epochs: 100
+learning_rate: 0.0001
+weight_decay: 0.0001
+patience: 15
+max_grad_norm: 2.0
