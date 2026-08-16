@@ -1,0 +1,22 @@
+# B2 controlled Transformer - Family B, full-suffix objective. Reuses
+# ControlledTransformerEncoder UNCHANGED from B1 (src/models/controlled_transformer/model.py)
+# plus a torch.nn.TransformerDecoder-based suffix decoder. Every field here
+# except `name`/`objective` is copied VERBATIM from
+# configs/models/controlled_transformer_next.yaml (B1) - this exact match
+# is what makes the B1-vs-B2 comparison a genuinely controlled,
+# objective-only one (spec §5). Do not tune this file without updating
+# B1's config to match.
+name: controlled_transformer_suffix
+family: B
+objective: full_suffix
+d_model: 64
+num_heads: 8
+num_layers: 4
+d_ff: 128
+dropout: 0.1
+batch_size: 128
+epochs: 100
+learning_rate: 0.0001
+weight_decay: 0.0001
+patience: 15
+max_grad_norm: 2.0

@@ -322,6 +322,33 @@ A1 (86.9%→72.9%), A2 (81.8%→63.5%), A3 (86.4%→72.1%), A4 (0.924→0.816), 
 - `configs/models/controlled_transformer_next.yaml`, `configs/experiments/controlled_transformer_next_helpdesk.yaml`
 - `results/helpdesk/controlled_transformer_next/{checkpoint.pt, test_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
 
-## Next steps for the remaining model
+## B2 — Controlled Transformer (full-suffix) on Helpdesk
 
-Same pattern to repeat for B2 (in-house controlled Transformer, full-suffix objective): reuse `ControlledTransformerEncoder` from `src/models/controlled_transformer/model.py` unchanged, add a suffix decoder + generation head, and copy B1's encoder hyperparameters verbatim from `configs/models/controlled_transformer_next.yaml` into B2's own config (both files documented as requiring this match). Data adapter should reuse `data.prefixes.make_suffix_prefixes`, the same shared suffix-prefix definition A4/A5 already use. Training stays sequential (see STATUS.md decision log) given a single shared GPU (currently CPU-only PyTorch wheels — see STATUS.md's CUDA-target open question), and should budget epochs/checkpointing around the ~60-minute background-process lifetime constraint discovered during A7's integration.
+### Architecture: reuses B1's encoder unchanged, decoder is the only new component
+
+B2 completes the Family B controlled pair: `ControlledTransformerSuffix` (`src/models/controlled_transformer/model.py`) reuses `ControlledTransformerEncoder` **unchanged** from B1 — the exact same class, same weights-shape, same bidirectional-over-prefix computation — and adds a `torch.nn.TransformerDecoder`-based suffix decoder (causal self-attention + cross-attention over the encoder's output, shared activity embedding between encoder and decoder, same design choice as A4 SuTraN's own encoder-decoder but built on the standard library rather than vendored/hand-rolled attention). `configs/models/controlled_transformer_suffix.yaml` copies every architecture/training-budget field (`d_model=64, num_heads=8, num_layers=4, d_ff=128, dropout=0.1, batch_size=128, learning_rate=0.0001, weight_decay=0.0001, max_grad_norm=2.0`) verbatim from B1's config, as promised when B1 was built — this is what makes the B1-vs-B2 comparison a genuinely controlled, objective-only one rather than a confounded architecture comparison.
+
+### A genuine simplification over A4/A5's shared-window constraint
+
+A4 SuTraN's (and by inheritance A5 CRTP-LSTM's) adapter forces prefix and suffix tensors to share one padded `window_size`, because SuTraN's own hand-rolled `MultiHeadAttention` broadcasts its padding mask assuming the decoder's query length always equals the encoder's key length (see `models/sutran/adapter.py`'s `get_window_size` docstring). `torch.nn.MultiheadAttention`'s own masks (`tgt_mask`, `memory_key_padding_mask`) carry no such coupling — B2's adapter (`suffix_adapter.py`) therefore uses **independent** `prefix_window`/`suffix_window` lengths. A related consequence: B2's `generate()` grows the decoder input one token at a time (the natural implementation), rather than needing A4's fixed-full-window workaround for a mask-broadcasting bug that doesn't exist here. Both are genuine architectural simplifications enabled by using the standard library, not corners cut for expedience.
+
+### Results
+
+Trained on Helpdesk, same split as A1–B1 (confirmed identical `dataset_split_hash` across all 9 models now trained). Early-stopped at epoch 23 of a 100-epoch budget (patience 15, best checkpoint at epoch 8) — training was smooth and did not need the ~60-minute background-process budgeting that constrained A6/A7 (this run completed comfortably within it regardless). **Overall val 0.9263 / test 0.8356** mean normalized DL-similarity (autoregressive generation, same protocol as every other full-suffix model). No published-number comparison exists (this is this project's own architecture, never evaluated on Helpdesk anywhere else).
+
+Per-prefix-length metrics (`results/helpdesk/controlled_transformer_suffix/test_metrics_by_prefix_length.csv`) show a smooth, monotonically-easier-with-longer-prefix pattern (k=0: 0.777, k=1: 0.747, rising to 0.93–0.95 by k=3–7) — the expected shape for a full-suffix model (shorter remaining suffix to generate at higher k), and notably **not** the sharp, isolated k=1 dip seen in B1 and A3 RLHGNN's own *next-event* per-k curves. That dip therefore looks specific to the next-event objective (predicting the 2nd event in a case) rather than a general property of prefix length k=1 across every task — a useful refinement of the open question logged for B1.
+
+### The val/test gap, now confirmed a NINTH time — and the smallest full-suffix gap in the roster
+
+A1 (86.9%→72.9%), A2 (81.8%→63.5%), A3 (86.4%→72.1%), A4 (0.924→0.816), A5 (0.917→0.816), A6 (0.926→0.829), A7 (0.9200→0.8034), B1 (0.8168→0.6286/0.5059), now **B2 (0.9263→0.8356)** — nine models, nine architectures, both Family A and Family B, both objectives, both metric families, one dataset/split, one still fully-consistent qualitative pattern. B2's gap (0.0907) is the **smallest of all five full-suffix models** (A4: 0.108, A5: 0.101, A6: 0.097, A7: 0.117, B2: 0.0907) — notably achieved with a full, uncapped training budget (24 epochs, no compute-driven cut like A7's), so unlike A7's confounded comparison, B2's small gap cannot be explained away by undertraining. This sits alongside A6 LUPIN's own smallest-gap-among-full-suffix-models finding (there attributed to a fine-tuned pretrained encoder generalizing more robustly) as a second, architecturally unrelated case of comparatively strong generalization — worth a closer, non-speculative look once Phase 5's geometry metrics can characterize *why* (e.g. z_t's local neighborhood structure or intrinsic dimensionality) rather than guessing from predictive metrics alone.
+
+### Artifacts produced
+
+- `src/models/controlled_transformer/{model.py (ControlledTransformerSuffix, added), suffix_adapter.py}` — from-scratch, no external license/attribution concerns
+- `experiments/train_controlled_transformer_suffix.py`
+- `configs/models/controlled_transformer_suffix.yaml`, `configs/experiments/controlled_transformer_suffix_helpdesk.yaml`
+- `results/helpdesk/controlled_transformer_suffix/{checkpoint.pt, test_metrics_by_prefix_length.csv, manifest.json}` (gitignored)
+
+## Phase 3 complete
+
+All 9 roster configurations (A1–A7 Family A, B1–B2 Family B) are trained end-to-end on Helpdesk, sharing one identical `dataset_split_hash` throughout, each with a documented z_t extraction point and a recorded provenance manifest (config, seed, git commit, software versions, checkpoint path). The val/test gap held across all 9 — see STATUS.md's "Open questions" for the dedicated-analysis plan once a non-Helpdesk dataset is available. Next: Phase 4 (representation extraction) — implement the per-model z_t-extraction hooks already identified during each model's integration, and cache `Z_σ` per trace for the full test set without needing to retrain anything.

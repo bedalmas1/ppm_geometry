@@ -1,0 +1,9 @@
+# Family B: B2 controlled Transformer (full-suffix) on Helpdesk. Same
+# dataset/split as every model in the roster, including B1 (same
+# dataset_split_hash expected). Second of the two Family B controlled
+# variants - together with B1 (next-event), this pair isolates objective
+# from architecture per spec §5, and feeds PLAN.md's Phase 6 pilot-first
+# rule.
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/controlled_transformer_suffix.yaml
+seed: 42
