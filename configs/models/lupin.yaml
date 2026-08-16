@@ -1,0 +1,32 @@
+# A6 LUPIN hyperparameters (activity-only scope, text-narrative + BERT
+# fine-tuning - see src/models/lupin/model.py's docstring).
+#
+# bert_model_name / learning_rate / patience taken directly from the repo's
+# own main.py, not guessed.
+#
+# batch_size, epochs, and max_token_length_cap are DELIBERATE, DISCLOSED
+# compute-budget deviations from the repo's own values (batch_size=8,
+# epochs=50, MAX_LEN=512) - measured on this project's CPU-only hardware
+# (see paper/phase3_baseline_reproduction.md's A6 section): at the repo's
+# own batch_size=8 with the (non-lossy) TRAIN-derived max token length
+# (133+margin on Helpdesk), one epoch measured ~59 minutes, making a
+# 50-epoch budget impractical. Benchmarked batch_size=32 (better CPU
+# throughput than 8) with max_token_length capped at 48 tokens (covers
+# ~92-93% of TRAIN prefixes without truncation on Helpdesk - only the
+# longest tail is truncated, dropping OLDEST events via
+# `truncation_side='left'`, not lossy for the large majority of instances)
+# at ~14 minutes/epoch. epochs capped at 15 (patience=5 kept from the repo)
+# is informed by this roster's own empirical fast-convergence pattern for
+# full-suffix models on Helpdesk (A5 CRTP-LSTM's best checkpoint at epoch 1,
+# A3 RLHGNN's at epoch 2) - a reasonable, disclosed compute-bounded budget,
+# not a hidden shortcut.
+name: lupin
+family: A
+objective: full_suffix
+bert_model_name: prajjwal1/bert-medium
+batch_size: 32
+epochs: 15
+learning_rate: 0.00001
+patience: 5
+max_token_length_margin: 4  # added on top of the (capped) tokenized text length, for [CLS]/[SEP]/safety
+max_token_length_cap: 48  # see rationale above; only applied if the TRAIN split's true max+margin exceeds it

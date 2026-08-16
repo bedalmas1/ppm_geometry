@@ -1,0 +1,11 @@
+# Family A: A6 LUPIN on Helpdesk. Same dataset/split as A1-A5. Unlike A3/A4/
+# A5, LUPIN's own paper DOES evaluate Helpdesk (confirmed via the repo's own
+# event_log/helpdesk.csv + utility/log_config.py's 'helpdesk' entry) - but
+# the paper itself (IEEE Xplore, ICPM 2024) is paywalled with no arXiv
+# preprint or author-hosted copy found, so this project could not
+# independently extract the exact published number for comparison. See
+# paper/phase3_baseline_reproduction.md's A6 section for the disclosed
+# reasoning.
+dataset_config: configs/datasets/helpdesk.yaml
+model_config: configs/models/lupin.yaml
+seed: 42
