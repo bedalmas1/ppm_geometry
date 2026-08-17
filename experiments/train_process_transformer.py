@@ -113,10 +113,10 @@ def main() -> None:
     parts = apply_split(df, split)
 
     print(f"[{dataset_name}] building vocab from TRAIN split only...")
-    vocab = build_vocab(parts["train"])
     train_prefixes = make_prefixes(parts["train"])
     val_prefixes = make_prefixes(parts["val"])
     test_prefixes = make_prefixes(parts["test"])
+    vocab = build_vocab(train_prefixes)
     max_case_length = get_max_case_length(train_prefixes)
     print(
         f"[{dataset_name}] vocab_size={vocab.vocab_size} num_classes={vocab.num_classes} "
