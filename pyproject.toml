@@ -17,6 +17,11 @@ dependencies = [
     "pandas>=2.0",
     "numpy>=1.26",
     "scikit-learn>=1.4",
+    # Phase 5's geometry package (src/geometry) uses scipy.stats.spearmanr
+    # and scipy.spatial.distance.pdist directly - already a transitive
+    # dependency of scikit-learn, declared explicitly since we import it
+    # ourselves rather than relying on an implicit transitive install.
+    "scipy>=1.11",
     "pyyaml>=6.0",
     # Standard process-mining library, used for XES parsing (Phase 2 data
     # pipeline) rather than a hand-rolled parser.

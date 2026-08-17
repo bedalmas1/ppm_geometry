@@ -1361,6 +1361,7 @@ dependencies = [
     { name = "pyarrow" },
     { name = "pyyaml" },
     { name = "scikit-learn" },
+    { name = "scipy" },
 ]
 
 [package.optional-dependencies]
@@ -1398,6 +1399,7 @@ requires-dist = [
     { name = "pydantic", marker = "extra == 'torch-dgl'" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scikit-learn", specifier = ">=1.4" },
+    { name = "scipy", specifier = ">=1.11" },
     { name = "tensorflow", marker = "extra == 'tf'", specifier = ">=2.16,<2.20" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.3" },
     { name = "torch", marker = "extra == 'torch-dgl'", specifier = "==2.3.0" },

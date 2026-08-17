@@ -120,14 +120,14 @@ Tasks:
 Maps to spec §8, §9, §22, §25 Phase 5. **Do this before analyzing any real model.**
 
 Tasks:
-- [ ] Implement modular `src/geometry/` package: straightness (§8.1), path length (§8.2), velocity/displacement (§8.3), curvature (§8.4, with careful handling of near-zero-norm degeneracies), smoothness/acceleration (§8.5), progress-to-terminal-region (§8.6, Euclidean prototype + at least one neighborhood/distribution-based alternative), branch separation over normalized progress (§8.7), future-equivalence neighborhood quality (§8.8: edit-distance/Damerau-Levenshtein/activity-set/n-gram/outcome/remaining-time distances vs. latent distance, rank correlation, precision@k, trustworthiness/continuity).
-- [ ] Implement representation-quality diagnostics required by §9: embedding variance, covariance spectrum, effective rank, pairwise-distance distribution, intrinsic dimensionality, terminal-state separability, neighborhood preservation. These must always accompany trajectory metrics — never report straightness without them.
-- [ ] Build the synthetic trajectory suite from spec §22: perfectly straight, circular-arc curved, backtracking, collapsed (\(z_t=c\)), branching, reconverging. Assert analytically-known expected values (e.g. straightness = 1 for the straight case, collapse triggers degenerate-geometry flags).
-- [ ] Write `tests/` for every metric against the synthetic suite — this is the primary regression protection for the whole project.
+- [x] Implement modular `src/geometry/` package: straightness (§8.1), path length (§8.2), velocity/displacement (§8.3), curvature (§8.4, with careful handling of near-zero-norm degeneracies), smoothness/acceleration (§8.5), progress-to-terminal-region (§8.6, Euclidean prototype + at least one neighborhood/distribution-based alternative), branch separation over normalized progress (§8.7), future-equivalence neighborhood quality (§8.8: edit-distance/Damerau-Levenshtein/activity-set/n-gram/outcome/remaining-time distances vs. latent distance, rank correlation, precision@k, trustworthiness/continuity).
+- [x] Implement representation-quality diagnostics required by §9: embedding variance, covariance spectrum, effective rank, pairwise-distance distribution, intrinsic dimensionality, terminal-state separability, neighborhood preservation. These must always accompany trajectory metrics — never report straightness without them.
+- [x] Build the synthetic trajectory suite from spec §22: perfectly straight, circular-arc curved, backtracking, collapsed (\(z_t=c\)), branching, reconverging. Assert analytically-known expected values (e.g. straightness = 1 for the straight case, collapse triggers degenerate-geometry flags).
+- [x] Write `tests/` for every metric against the synthetic suite — this is the primary regression protection for the whole project.
 
-**Deliverable:** `src/geometry/` + `tests/test_geometry_*.py`, all green against synthetic ground truth.
+**Deliverable:** `src/geometry/` + `tests/test_geometry_*.py`, all green against synthetic ground truth. DONE — see [`paper/phase5_geometry_metrics.md`](./paper/phase5_geometry_metrics.md).
 
-**Exit criteria:** every metric has at least one synthetic case with a known correct value, and passes.
+**Exit criteria:** every metric has at least one synthetic case with a known correct value, and passes. MET (44 tests, all green).
 
 ---
 
