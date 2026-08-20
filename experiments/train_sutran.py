@@ -152,7 +152,7 @@ def main() -> None:
 
     dataset_name = dataset_config["name"]
     print(f"[{dataset_name}] loading raw log and re-deriving this project's split...")
-    df = load_dataset(REPO_ROOT / dataset_config["raw_path"], dataset_config["source"]["format"])
+    df = load_dataset(REPO_ROOT / dataset_config["raw_path"], dataset_config["source"]["format"], dataset_config.get("date_filter"))
     split_cfg = dataset_config["split"]
     split = compute_split(df, split_cfg["train_frac"], split_cfg["val_frac"], split_cfg["test_frac"])
     parts = apply_split(df, split)
@@ -200,13 +200,72 @@ def main() -> None:
     result_dir = REPO_ROOT / "results" / dataset_name / "sutran"
     result_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = result_dir / "checkpoint.pt"
+    resume_state_path = result_dir / "resume_state.pt"
 
+    total_epochs = model_config["epochs"]
+    start_epoch = 0
     best_val_loss = float("inf")
     epochs_without_improvement = 0
     train_losses = []
+    stopped_early = False
 
-    print(f"[{dataset_name}] training for up to {model_config['epochs']} epochs (patience={model_config['patience']})...")
-    for epoch in range(model_config["epochs"]):
+    # Checkpoint/resume, same pattern as train_mlmme.py: full training state
+    # (model, optimizer, LR scheduler, epoch counter, patience counter, RNG
+    # states) snapshotted to resume_state.pt after every epoch, so
+    # re-running this exact command resumes with bit-for-bit RNG
+    # continuity instead of restarting - needed once BPIC17/BPIC19-scale
+    # training runs long enough to need interrupting (found necessary for
+    # A7 MLMME on Helpdesk already; SuTraN had no such support until a user
+    # run on Sepsis raised the question).
+    if resume_state_path.exists():
+        print(f"[{dataset_name}] found {resume_state_path}, resuming training state...")
+        resume_state = torch.load(resume_state_path, map_location=DEVICE, weights_only=False)
+        model.load_state_dict(resume_state["model_state"])
+        optimizer.load_state_dict(resume_state["optimizer_state"])
+        lr_scheduler.load_state_dict(resume_state["scheduler_state"])
+        start_epoch = resume_state["next_epoch"]
+        best_val_loss = resume_state["best_val_loss"]
+        epochs_without_improvement = resume_state["epochs_without_improvement"]
+        train_losses = resume_state["train_losses"]
+        stopped_early = resume_state["stopped_early"]
+        random.setstate(resume_state["random_state"])
+        np.random.set_state(resume_state["numpy_state"])
+        torch.set_rng_state(resume_state["torch_state"].cpu())
+        print(
+            f"[{dataset_name}] resumed at epoch {start_epoch} "
+            f"(best_val_loss={best_val_loss:.4f}, {len(train_losses)} epochs already run, "
+            f"stopped_early={stopped_early})"
+        )
+
+    def save_resume_state(next_epoch: int, stopped_early_flag: bool) -> None:
+        torch.save(
+            {
+                "model_state": model.state_dict(),
+                "optimizer_state": optimizer.state_dict(),
+                "scheduler_state": lr_scheduler.state_dict(),
+                "next_epoch": next_epoch,
+                "best_val_loss": best_val_loss,
+                "epochs_without_improvement": epochs_without_improvement,
+                "train_losses": train_losses,
+                "stopped_early": stopped_early_flag,
+                "random_state": random.getstate(),
+                "numpy_state": np.random.get_state(),
+                "torch_state": torch.get_rng_state(),
+            },
+            resume_state_path,
+        )
+
+    if stopped_early:
+        print(f"[{dataset_name}] training already early-stopped in a prior run, skipping straight to evaluation.")
+    elif start_epoch >= total_epochs:
+        print(f"[{dataset_name}] already ran the requested {total_epochs} epochs, skipping straight to evaluation.")
+    else:
+        print(
+            f"[{dataset_name}] training epochs {start_epoch}..{total_epochs - 1} "
+            f"(patience={model_config['patience']})..."
+        )
+
+    for epoch in (range(start_epoch, total_epochs) if not stopped_early else []):
         model.train()
         epoch_loss, n_batches = 0.0, 0
         for x, pad, dec_in, y in train_loader:
@@ -224,7 +283,7 @@ def main() -> None:
         train_losses.append(train_loss)
 
         val_loss = teacher_forced_val_loss(model, val_x, val_pad, val_dec_in, val_y, loss_fn)
-        print(f"Epoch {epoch}: train_loss={train_loss:.4f} val_loss={val_loss:.4f}")
+        print(f"Epoch {epoch}: train_loss={train_loss:.4f} val_loss={val_loss:.4f}", flush=True)
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -232,9 +291,13 @@ def main() -> None:
             torch.save(model.state_dict(), checkpoint_path)
         else:
             epochs_without_improvement += 1
-            if epochs_without_improvement >= model_config["patience"]:
-                print(f"No val_loss improvement for {model_config['patience']} epochs. Stopping at epoch {epoch}.")
-                break
+
+        if epochs_without_improvement >= model_config["patience"]:
+            print(f"No val_loss improvement for {model_config['patience']} epochs. Stopping at epoch {epoch}.")
+            save_resume_state(next_epoch=epoch + 1, stopped_early_flag=True)
+            break
+        else:
+            save_resume_state(next_epoch=epoch + 1, stopped_early_flag=False)
 
     print(f"[{dataset_name}] restoring best (val-loss) checkpoint for test evaluation...")
     model.load_state_dict(torch.load(checkpoint_path, map_location=DEVICE))

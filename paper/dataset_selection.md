@@ -10,13 +10,13 @@ Computed programmatically by `scripts/prepare_dataset.py` from the actual parsed
 |---|---|---|---|---|---|---|---|---|
 | **BPIC12** | 13,087 | 262,200 | 24 | 20.04 / 11.0 | 4,366 | 7.75 | 2011-09-30 → 2012-03-14 | 8,376 / 2,094 / 2,617 |
 | **BPIC17** | 31,509 | 1,202,267 | 26 | 38.16 / 35.0 | 15,930 | 11.99 | 2016-01-01 → 2017-02-01 | 20,166 / 5,041 / 6,302 |
-| **BPIC19** | 251,734 | 1,595,923 | 42 | 6.34 / 5.0 | 11,973 | 6.24 | **see note below** | 161,110 / 40,277 / 50,347 |
+| **BPIC19** | 251,734 | 1,595,596 | 42 | 6.34 / 5.0 | 11,985 | 6.25 | 2018-01-01 → 2019-01-18 | 161,110 / 40,277 / 50,347 |
 | **Sepsis** | 1,050 | 15,214 | 16 | 14.49 / 13.0 | 846 | 9.33 | 2013-11-07 → 2015-06-05 | 672 / 168 / 210 |
 | **Helpdesk** | 4,580 | 21,348 | 14 | 4.66 / 4.0 | 226 | 3.36 | 2010-01-13 → 2014-01-03 | 2,931 / 733 / 916 |
 
-Every case/event/activity count above matches the figures reported in the originating papers/landing pages exactly (BPIC12: 13,087 cases/262,200 events; BPIC19: 251,734 cases/1,595,923 events/42 activities; etc.) — a useful independent cross-check that the parsing pipeline is correct.
+Every case/event/activity count above matches the figures reported in the originating papers/landing pages exactly (BPIC12: 13,087 cases/262,200 events; BPIC19: 251,734 cases/1,595,923 events/42 activities before cleaning, see below; etc.) — a useful independent cross-check that the parsing pipeline is correct.
 
-**BPIC19 temporal-span data-quality note:** the raw computed span is 1948-01-26 → 2020-04-09, which is not a real 72-year process — this is a known BPIC19 data-quality artifact (a small number of events carry placeholder/default timestamps far outside the log's actual ~2018 collection period), not a pipeline bug. This needs a documented cleaning rule before Phase 3 training (e.g. drop or clip events outside a sane date range) rather than being silently accepted — logged here as a Phase 2/3 open item, not yet resolved.
+**BPIC19 timestamp data-quality artifact — resolved 2026-08-17.** The raw computed temporal span was 1948-01-26 → 2020-04-09, not a real 72-year process: a small number of events (327 of 1,595,923, i.e. 0.02%) carry placeholder/default timestamps far outside the log's actual ~2018-2019 collection period. Fixed via `configs/datasets/bpic19.yaml`'s new `date_filter` (`src/data/loaders.py`'s `_apply_date_filter`), using SuTraN's own `create_BPIC19_data.py` cutoffs (`start_date="2018-01"`, `end_date="2019-02"`, found while integrating A4 — STATUS.md's 2026-08-15 decision log) applied at the **event level, not the case level**: the 327 corrupted events are dropped, but every one of their 251,734 cases is kept (case count is unaffected — direct evidence the artifact really is "a handful of bad events," not bad cases). Mean/median trace length, trace-variant count, and variant entropy in the table above are recomputed post-fix (`data/processed/bpic19/manifest.json`, regenerated 2026-08-17) — as expected, they barely moved from the pre-fix figures (11,973 → 11,985 variants, 6.24 → 6.25 bits) at 0.02% of events dropped.
 
 Structural roles: BPIC12 (classic, well-studied loops; loan application), BPIC17 (large, branching, loan application; shared with the SuTraN/CRTP-LSTM repo A4/A5), BPIC19 (largest, purchase-order handling, high variant count; also shared with A4/A5), Sepsis (smallest, hospital process, high rework/variability — variant entropy of 9.33 bits across only 1,050 cases confirms this), Helpdesk (small, simple/linear ticketing — lowest variant entropy of the five at 3.36 bits, confirming its "simple/linear" structural role; CSV, not XES; same dataset ProcessTransformer's own paper evaluated on).
 
@@ -44,5 +44,4 @@ Not defined for any dataset — outcome prediction was dropped from this study e
 
 ## Not yet done (tracked in `STATUS.md`)
 
-- Resolving the BPIC19 timestamp data-quality artifact (see note above) with an explicit, documented cleaning rule before Phase 3 training.
 - Dataset version/hash recording beyond the split hash already in each manifest — e.g. hashing the raw downloaded file itself for full spec §21 provenance.

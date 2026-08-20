@@ -14,13 +14,19 @@ GlobalAveragePooling1D output as the z_t extraction point.
 """
 from __future__ import annotations
 
+import keras
 import tensorflow as tf
 from tensorflow.keras import layers
 
 
+@keras.saving.register_keras_serializable(package="process_transformer")
 class TransformerBlock(layers.Layer):
-    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
-        super().__init__()
+    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1, **kwargs):
+        super().__init__(**kwargs)
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.ff_dim = ff_dim
+        self.rate = rate
         self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
         self.ffn = tf.keras.Sequential(
             [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim)]
@@ -38,10 +44,21 @@ class TransformerBlock(layers.Layer):
         ffn_output = self.dropout_b(ffn_output, training=training)
         return self.layernorm_b(out_a + ffn_output)
 
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {"embed_dim": self.embed_dim, "num_heads": self.num_heads, "ff_dim": self.ff_dim, "rate": self.rate}
+        )
+        return config
 
+
+@keras.saving.register_keras_serializable(package="process_transformer")
 class TokenAndPositionEmbedding(layers.Layer):
-    def __init__(self, maxlen, vocab_size, embed_dim):
-        super().__init__()
+    def __init__(self, maxlen, vocab_size, embed_dim, **kwargs):
+        super().__init__(**kwargs)
+        self.maxlen = maxlen
+        self.vocab_size = vocab_size
+        self.embed_dim = embed_dim
         self.token_emb = layers.Embedding(input_dim=vocab_size, output_dim=embed_dim)
         self.pos_emb = layers.Embedding(input_dim=maxlen, output_dim=embed_dim)
 
@@ -51,6 +68,11 @@ class TokenAndPositionEmbedding(layers.Layer):
         positions = self.pos_emb(positions)
         x = self.token_emb(x)
         return x + positions
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({"maxlen": self.maxlen, "vocab_size": self.vocab_size, "embed_dim": self.embed_dim})
+        return config
 
 
 def get_next_activity_model(

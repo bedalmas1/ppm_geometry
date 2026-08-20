@@ -174,7 +174,7 @@ def main() -> None:
 
     dataset_name = dataset_config["name"]
     print(f"[{dataset_name}] loading raw log and re-deriving this project's split...")
-    df = load_dataset(REPO_ROOT / dataset_config["raw_path"], dataset_config["source"]["format"])
+    df = load_dataset(REPO_ROOT / dataset_config["raw_path"], dataset_config["source"]["format"], dataset_config.get("date_filter"))
     split_cfg = dataset_config["split"]
     split = compute_split(df, split_cfg["train_frac"], split_cfg["val_frac"], split_cfg["test_frac"])
     parts = apply_split(df, split)
@@ -256,7 +256,7 @@ def main() -> None:
         stopped_early = resume_state["stopped_early"]
         random.setstate(resume_state["random_state"])
         np.random.set_state(resume_state["numpy_state"])
-        torch.set_rng_state(resume_state["torch_state"])
+        torch.set_rng_state(resume_state["torch_state"].cpu())
         print(
             f"[{dataset_name}] resumed at epoch {start_epoch} "
             f"(best_val_loss={best_val_loss:.4f}, {len(train_g_losses)} epochs already run, "

@@ -14,6 +14,13 @@ source:
 raw_path: "data/raw/bpic19/BPI_Challenge_2019.xes"
 processed_path: "data/processed/bpic19/"
 outcome_label: null  # outcome prediction dropped from this study
+date_filter:  # drops individual events outside this window (row-level, not
+  # case-level) - fixes the known 1948-01-26 placeholder-timestamp artifact
+  # (STATUS.md Phase 2 finding). Cutoffs match SuTraN's own
+  # create_BPIC19_data.py (start_date="2018-01", end_date="2019-02"),
+  # found during A4's integration (STATUS.md decision log, 2026-08-15).
+  start: "2018-01-01"
+  end: "2019-02-01"
 split:
   method: time_based_case_sort
   train_frac: 0.64

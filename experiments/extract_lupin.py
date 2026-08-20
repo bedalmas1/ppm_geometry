@@ -97,7 +97,7 @@ def main() -> None:
     max_token_length = manifest["max_token_length"]
 
     print(f"[{args.dataset}/{MODEL_NAME}] reloading raw log + re-deriving split...")
-    df = load_dataset(REPO_ROOT / dataset_config["raw_path"], dataset_config["source"]["format"])
+    df = load_dataset(REPO_ROOT / dataset_config["raw_path"], dataset_config["source"]["format"], dataset_config.get("date_filter"))
     split_cfg = dataset_config["split"]
     split = compute_split(df, split_cfg["train_frac"], split_cfg["val_frac"], split_cfg["test_frac"])
     parts = apply_split(df, split)

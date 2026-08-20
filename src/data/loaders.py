@@ -74,10 +74,36 @@ FORMAT_LOADERS = {
 }
 
 
-def load_dataset(raw_path: str | Path, fmt: str) -> pd.DataFrame:
-    """Dispatch to the right loader for a dataset config's declared `format`."""
+def _apply_date_filter(df: pd.DataFrame, date_filter: dict | None) -> pd.DataFrame:
+    """Drop individual *events* (not whole cases) whose timestamp falls
+    outside [start, end) - BPIC19's only consumer so far (STATUS.md: its
+    computed temporal span starts 1948-01-26, a known placeholder-timestamp
+    artifact on a handful of events, not a real 72-year process).
+
+    Row-level rather than case-level: removes the corrupted event record
+    while keeping the rest of that case's otherwise-valid events. Cutoffs
+    match SuTraN's own create_BPIC19_data.py (start_date="2018-01",
+    end_date="2019-02"), found while integrating A4 (STATUS.md decision
+    log); applying them at the row level (vs. dropping whole cases whose
+    span touches the artifact) is this project's own disclosed choice, not
+    independently re-verified against SuTraN's exact filtering granularity.
+    """
+    if date_filter is None:
+        return df
+    start = pd.Timestamp(date_filter["start"], tz="UTC")
+    end = pd.Timestamp(date_filter["end"], tz="UTC")
+    mask = (df[TIMESTAMP] >= start) & (df[TIMESTAMP] < end)
+    return df.loc[mask].reset_index(drop=True)
+
+
+def load_dataset(raw_path: str | Path, fmt: str, date_filter: dict | None = None) -> pd.DataFrame:
+    """Dispatch to the right loader for a dataset config's declared `format`,
+    then optionally apply a row-level timestamp filter (`date_filter`,
+    e.g. configs/datasets/bpic19.yaml's `date_filter: {start, end}`) - a
+    no-op for every dataset that doesn't declare one."""
     try:
         loader = FORMAT_LOADERS[fmt]
     except KeyError:
         raise ValueError(f"Unknown format '{fmt}'. Known: {list(FORMAT_LOADERS)}") from None
-    return loader(raw_path)
+    df = loader(raw_path)
+    return _apply_date_filter(df, date_filter)

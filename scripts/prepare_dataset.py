@@ -52,7 +52,7 @@ def prepare(config_path: Path) -> None:
     name = config["name"]
     print(f"[{name}] loading {config['raw_path']} (format={config['source']['format']})")
 
-    df = load_dataset(REPO_ROOT / config["raw_path"], config["source"]["format"])
+    df = load_dataset(REPO_ROOT / config["raw_path"], config["source"]["format"], config.get("date_filter"))
 
     stats = compute_stats(df)
     print(f"[{name}] {stats.n_cases} cases, {stats.n_events} events, {stats.n_activities} activities")

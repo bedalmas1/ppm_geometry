@@ -37,7 +37,11 @@ tf = [
     "tensorflow>=2.16,<2.20",
 ]
 # A4 SuTraN, A5 CRTP-LSTM, A7 MLMME, B1/B2 (in-house controlled Transformer).
-# Exact pin TBD once Phase 3 picks a CUDA/CPU target.
+# CUDA target resolved 2026-08-19: plain PyPI torch ships CPU-only wheels
+# (CUDA builds are only on PyTorch's own index) - this was silently giving
+# every torch-based training run CPU-only execution despite this machine's
+# GPU (RTX A2000 8GB, driver supports CUDA 12.9), see the source override
+# below pointing this extra's `torch` at the cu124 index.
 torch = [
     "torch>=2.3",
 ]
@@ -103,3 +107,18 @@ conflicts = [
         { extra = "torch-dgl" },
     ],
 ]
+
+[tool.uv.sources]
+# Only the plain `torch` extra (A4/A5/A7/B1/B2) is redirected to a CUDA
+# build here. `torch-hf` (A6) and `torch-dgl` (A3) are left on the default
+# CPU-only PyPI wheel for now - torch-dgl in particular pins an exact
+# torch==2.3.0 to match dgl's precompiled graphbolt extension, and that
+# extension's own CUDA/CPU build compatibility hasn't been checked yet.
+torch = [
+    { index = "pytorch-cu124", extra = "torch" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true

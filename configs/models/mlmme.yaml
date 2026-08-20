@@ -39,7 +39,19 @@
 #     the best-so-far).
 #   - batch_size=128: preparation.py's `Preprocessing.run(self, input_path,
 #     batch_size=128)` default (also the value main.py's script path
-#     always uses, since it never overrides it).
+#     always uses, since it never overrides it). 2026-08-19 A/B comparison
+#     on Sepsis, same-day CUDA-torch fix + window_size p99 cap held
+#     constant: 512 -> ~52s/epoch but ~8033/8192MiB VRAM (right at the
+#     card's limit); 128 -> measured lower VRAM (~2GB), confirming 512 was
+#     mostly headroom rather than a necessity. Set to 256 as the value
+#     actually used going forward - a middle point expected to keep most
+#     of 512's batches/epoch speedup while leaving comfortable VRAM
+#     headroom instead of running at ~98% capacity. MLMME's per-step
+#     decoder is an unrolled Python loop over `window_size` run twice per
+#     batch (adversarial + MLE passes, see model.py's forward()
+#     docstring) - that loop's length doesn't depend on batch size, so a
+#     larger batch amortizes it over more samples per step instead of
+#     adding more steps, cutting batches/epoch roughly proportionally.
 #
 # epochs=500 matches the paper's own budget (Sec. 5.2). A first attempt at
 # this ran into TWO measured constraints: (1) at ~135s/epoch (timed on this
@@ -84,6 +96,6 @@ grad_clip_norm: 1.0
 gumbel_tau_smooth: 0.001
 gumbel_tau_anneal_base: 0.9
 gumbel_tau_floor: 0.001
-batch_size: 128
-epochs: 500
+batch_size: 256
+epochs: 210
 patience: 30

@@ -19,6 +19,18 @@ src/models/process_transformer/adapter.py's docstring for the first two):
      accuracy (the original script's ModelCheckpoint monitors
      `sparse_categorical_accuracy` on the training set itself, which
      doesn't measure generalization).
+
+Checkpoint/resume, same purpose as train_mlmme.py's PyTorch pattern but
+adapted to Keras: after every epoch the full compiled model (weights +
+optimizer state) is written to `<result_dir>/resume_model.keras` (Keras 3's
+native format, which round-trips optimizer state, not just weights), with
+epoch count/history/best-val-accuracy bookkeeping in a sidecar
+`resume_state.json`. Re-running this exact command picks back up at the
+next epoch instead of restarting. One disclosed difference from the
+PyTorch scripts: TensorFlow has no public global-RNG get/set state
+equivalent to `torch.get_rng_state()`, so a resumed run's batch-shuffle
+order isn't bit-for-bit continuous with the pre-interruption run (model/
+optimizer state is still exact) - harmless for final training outcome.
 """
 from __future__ import annotations
 
@@ -107,7 +119,7 @@ def main() -> None:
 
     dataset_name = dataset_config["name"]
     print(f"[{dataset_name}] loading raw log and re-deriving this project's split...")
-    df = load_dataset(REPO_ROOT / dataset_config["raw_path"], dataset_config["source"]["format"])
+    df = load_dataset(REPO_ROOT / dataset_config["raw_path"], dataset_config["source"]["format"], dataset_config.get("date_filter"))
     split_cfg = dataset_config["split"]
     split = compute_split(df, split_cfg["train_frac"], split_cfg["val_frac"], split_cfg["test_frac"])
     parts = apply_split(df, split)
@@ -127,45 +139,84 @@ def main() -> None:
     train_x, train_y = encode(train_prefixes, vocab, max_case_length)
     val_x, val_y = encode(val_prefixes, vocab, max_case_length)
 
-    model = get_next_activity_model(
-        max_case_length=max_case_length,
-        vocab_size=vocab.vocab_size,
-        output_dim=vocab.num_classes,
-        embed_dim=model_config["embed_dim"],
-        num_heads=model_config["num_heads"],
-        ff_dim=model_config["ff_dim"],
-    )
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(model_config["learning_rate"]),
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
-    )
-
     result_dir = REPO_ROOT / "results" / dataset_name / "process_transformer"
     result_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = result_dir / "checkpoint.weights.h5"
+    resume_model_path = result_dir / "resume_model.keras"
+    resume_state_path = result_dir / "resume_state.json"
 
-    callbacks = [
-        tf.keras.callbacks.ModelCheckpoint(
-            filepath=str(checkpoint_path),
-            save_weights_only=True,
-            monitor="val_sparse_categorical_accuracy",
-            mode="max",
-            save_best_only=True,
+    total_epochs = model_config["epochs"]
+    start_epoch = 0
+    best_val_accuracy = -1.0
+    train_loss_history: list[float] = []
+    val_accuracy_history: list[float] = []
+
+    if resume_state_path.exists() and resume_model_path.exists():
+        print(f"[{dataset_name}] found {resume_model_path}, resuming training state...")
+        model = tf.keras.models.load_model(str(resume_model_path))
+        resume_state = json.loads(resume_state_path.read_text(encoding="utf-8"))
+        start_epoch = resume_state["next_epoch"]
+        best_val_accuracy = resume_state["best_val_accuracy"]
+        train_loss_history = resume_state["train_loss_history"]
+        val_accuracy_history = resume_state["val_accuracy_history"]
+        print(
+            f"[{dataset_name}] resumed at epoch {start_epoch} "
+            f"(best_val_accuracy={best_val_accuracy:.4f}, {len(train_loss_history)} epochs already run)"
         )
-    ]
+    else:
+        model = get_next_activity_model(
+            max_case_length=max_case_length,
+            vocab_size=vocab.vocab_size,
+            output_dim=vocab.num_classes,
+            embed_dim=model_config["embed_dim"],
+            num_heads=model_config["num_heads"],
+            ff_dim=model_config["ff_dim"],
+        )
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(model_config["learning_rate"]),
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+            metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
+        )
 
-    print(f"[{dataset_name}] training for {model_config['epochs']} epochs...")
-    history = model.fit(
-        train_x,
-        train_y,
-        validation_data=(val_x, val_y),
-        epochs=model_config["epochs"],
-        batch_size=model_config["batch_size"],
-        shuffle=True,
-        verbose=2,
-        callbacks=callbacks,
-    )
+    def save_resume_state(next_epoch: int) -> None:
+        model.save(str(resume_model_path))
+        resume_state_path.write_text(
+            json.dumps(
+                {
+                    "next_epoch": next_epoch,
+                    "best_val_accuracy": best_val_accuracy,
+                    "train_loss_history": train_loss_history,
+                    "val_accuracy_history": val_accuracy_history,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    if start_epoch >= total_epochs:
+        print(f"[{dataset_name}] already ran the requested {total_epochs} epochs, skipping straight to evaluation.")
+    else:
+        print(f"[{dataset_name}] training epochs {start_epoch}..{total_epochs - 1}...")
+
+    for epoch in range(start_epoch, total_epochs):
+        history = model.fit(
+            train_x,
+            train_y,
+            validation_data=(val_x, val_y),
+            epochs=epoch + 1,
+            initial_epoch=epoch,
+            batch_size=model_config["batch_size"],
+            shuffle=True,
+            verbose=2,
+        )
+        train_loss_history.append(float(history.history["loss"][0]))
+        val_accuracy = float(history.history["val_sparse_categorical_accuracy"][0])
+        val_accuracy_history.append(val_accuracy)
+
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
+            model.save_weights(str(checkpoint_path))
+
+        save_resume_state(next_epoch=epoch + 1)
 
     print(f"[{dataset_name}] restoring best (val-accuracy) checkpoint for test evaluation...")
     model.load_weights(str(checkpoint_path))
@@ -205,8 +256,9 @@ def main() -> None:
         "n_train_prefixes": len(train_prefixes),
         "n_val_prefixes": len(val_prefixes),
         "n_test_prefixes": len(test_prefixes),
-        "final_train_loss": float(history.history["loss"][-1]),
-        "best_val_accuracy": float(max(history.history["val_sparse_categorical_accuracy"])),
+        "epochs_run": len(train_loss_history),
+        "final_train_loss": train_loss_history[-1],
+        "best_val_accuracy": float(best_val_accuracy),
         "overall_test_metrics": overall,
         "checkpoint_path": str(checkpoint_path.relative_to(REPO_ROOT)),
     }

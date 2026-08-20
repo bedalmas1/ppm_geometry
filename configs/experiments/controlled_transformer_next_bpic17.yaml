@@ -1,0 +1,10 @@
+# Phase 6 full-scale sub-phase: B1 controlled Transformer (next-event) on BPIC17.
+# Auto-generated from the Helpdesk experiment config of the same model
+# (2026-08-14..17 Phase 3 integrations) by swapping only dataset_config -
+# model architecture/training-budget hyperparameters are unchanged, per
+# spec §5's "same encoder/embedding-dim/training-budget across
+# datasets/objectives" controlled-comparison requirement. Run by the user
+# directly (STATUS.md: single shared GPU, sequential training only).
+dataset_config: configs/datasets/bpic17.yaml
+model_config: configs/models/controlled_transformer_next.yaml
+seed: 42

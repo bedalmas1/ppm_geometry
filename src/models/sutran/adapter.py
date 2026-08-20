@@ -60,7 +60,7 @@ def build_vocab(train_prefixes: pd.DataFrame) -> Vocab:
     return Vocab(tuple(activities), word_dict, class_dict)
 
 
-def get_window_size(prefix_df: pd.DataFrame) -> int:
+def get_window_size(prefix_df: pd.DataFrame, cap_percentile: float = 0.99) -> int:
     """A single shared max length ('window_size' in the original repo's own
     terminology) used to pad BOTH prefix and suffix tensors. This is not an
     arbitrary simplification: the original repo does exactly this (its
@@ -71,10 +71,32 @@ def get_window_size(prefix_df: pd.DataFrame) -> int:
     length when both share the same padded length. Using two independent
     max lengths (as an earlier version of this adapter did) breaks that
     broadcast and crashes with a shape-mismatch error - a genuine
-    architectural constraint, not just a convention to mirror for fidelity."""
+    architectural constraint, not just a convention to mirror for fidelity.
+
+    2026-08-19: capped at the `cap_percentile` quantile of TRAIN prefix/
+    suffix lengths rather than the true max, disclosed scope decision (not
+    a bug fix) - datasets with a long tail of very long traces (e.g. Sepsis:
+    max 184 vs. p99 far lower) otherwise force every full-suffix model
+    sharing this function (A4 SuTraN, A5 CRTP-LSTM, A6 LUPIN, A7 MLMME) to
+    unroll their per-step decoders over the full untruncated tail on every
+    batch, dominating per-epoch time for a training-set benefit affecting
+    <1% of cases. `_pad_right`/`_pad_left`-style encoders already truncate
+    anything longer than `window_size`, so this simply moves that existing
+    truncation threshold down; on datasets without a long tail (e.g.
+    Helpdesk) the percentile equals the true max, so this is a no-op."""
     max_prefix_len = int(prefix_df["history"].map(len).max())
     max_suffix_len = int(prefix_df["suffix"].map(len).max())
-    return max(max_prefix_len, max_suffix_len)
+    true_max = max(max_prefix_len, max_suffix_len)
+    prefix_cap = prefix_df["history"].map(len).quantile(cap_percentile)
+    suffix_cap = prefix_df["suffix"].map(len).quantile(cap_percentile)
+    capped = int(np.ceil(max(prefix_cap, suffix_cap, 1)))
+    window_size = min(true_max, capped)
+    if window_size < true_max:
+        print(
+            f"[get_window_size] capping window_size at the p{cap_percentile:.0%} length "
+            f"({window_size}) instead of the true max ({true_max})"
+        )
+    return window_size
 
 
 def _pad_right(sequences: list[list[int]], maxlen: int, pad_value: int = 0) -> np.ndarray:
