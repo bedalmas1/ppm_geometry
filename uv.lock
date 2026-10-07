@@ -13,7 +13,8 @@ resolution-markers = [
     "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-12-ppm-geometry-tf' and extra != 'extra-12-ppm-geometry-torch' and extra != 'extra-12-ppm-geometry-torch-dgl' and extra == 'extra-12-ppm-geometry-torch-hf'",
     "sys_platform == 'win32' and extra != 'extra-12-ppm-geometry-tf' and extra != 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-dgl' and extra != 'extra-12-ppm-geometry-torch-hf'",
     "sys_platform == 'emscripten' and extra != 'extra-12-ppm-geometry-tf' and extra != 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-dgl' and extra != 'extra-12-ppm-geometry-torch-hf'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-12-ppm-geometry-tf' and extra != 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-dgl' and extra != 'extra-12-ppm-geometry-torch-hf'",
+    "sys_platform == 'linux' and extra != 'extra-12-ppm-geometry-tf' and extra != 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-dgl' and extra != 'extra-12-ppm-geometry-torch-hf'",
+    "sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-12-ppm-geometry-tf' and extra != 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-dgl' and extra != 'extra-12-ppm-geometry-torch-hf'",
     "python_full_version < '3.12' and sys_platform == 'win32' and extra != 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch' and extra != 'extra-12-ppm-geometry-torch-dgl' and extra != 'extra-12-ppm-geometry-torch-hf'",
     "python_full_version < '3.12' and sys_platform == 'emscripten' and extra != 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch' and extra != 'extra-12-ppm-geometry-torch-dgl' and extra != 'extra-12-ppm-geometry-torch-hf'",
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch' and extra != 'extra-12-ppm-geometry-torch-dgl' and extra != 'extra-12-ppm-geometry-torch-hf'",
@@ -318,16 +319,45 @@ wheels = [
 [[package]]
 name = "dgl"
 version = "2.2.1"
-source = { registry = "https://pypi.org/simple" }
+source = { registry = "https://data.dgl.ai/wheels/torch-2.3/repo.html" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 dependencies = [
-    { name = "networkx" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "psutil" },
-    { name = "requests" },
-    { name = "scipy" },
-    { name = "torchdata" },
-    { name = "tqdm" },
+    { name = "networkx", marker = "sys_platform == 'linux'" },
+    { name = "numpy", marker = "sys_platform == 'linux'" },
+    { name = "pandas", marker = "sys_platform == 'linux'" },
+    { name = "psutil", marker = "sys_platform == 'linux'" },
+    { name = "requests", marker = "sys_platform == 'linux'" },
+    { name = "scipy", marker = "sys_platform == 'linux'" },
+    { name = "torchdata", marker = "sys_platform == 'linux'" },
+    { name = "tqdm", marker = "sys_platform == 'linux'" },
+]
+wheels = [
+    { url = "https://data.dgl.ai/wheels/torch-2.3/dgl-2.2.1-cp311-cp311-manylinux1_x86_64.whl" },
+    { url = "https://data.dgl.ai/wheels/torch-2.3/dgl-2.2.1-cp311-cp311-manylinux2014_aarch64.whl" },
+    { url = "https://data.dgl.ai/wheels/torch-2.3/dgl-2.2.1-cp312-cp312-manylinux1_x86_64.whl" },
+    { url = "https://data.dgl.ai/wheels/torch-2.3/dgl-2.2.1-cp312-cp312-manylinux2014_aarch64.whl" },
+]
+
+[[package]]
+name = "dgl"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'win32'",
+    "sys_platform == 'emscripten'",
+    "sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32'",
+]
+dependencies = [
+    { name = "networkx", marker = "sys_platform != 'linux'" },
+    { name = "numpy", marker = "sys_platform != 'linux'" },
+    { name = "pandas", marker = "sys_platform != 'linux'" },
+    { name = "psutil", marker = "sys_platform != 'linux'" },
+    { name = "requests", marker = "sys_platform != 'linux'" },
+    { name = "scipy", marker = "sys_platform != 'linux'" },
+    { name = "torchdata", marker = "sys_platform != 'linux'" },
+    { name = "tqdm", marker = "sys_platform != 'linux'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/90/c8/72de38a32f1f95634c5eaabecb4656c6796a9aadfe7764939d8350136e9c/dgl-2.2.1-cp311-cp311-win_amd64.whl", hash = "sha256:343ca8d375a15aa6b50a72314ec11529b9f9467a34c29281c76a4762e6b326fe", size = 5332859, upload-time = "2024-05-13T01:10:43.796Z" },
@@ -1005,7 +1035,7 @@ name = "nvidia-cudnn-cu12"
 version = "8.9.2.26"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/74/a2e2be7fb83aaedec84f391f082cf765dfb635e7caa9b49065f73e4835d8/nvidia_cudnn_cu12-8.9.2.26-py3-none-manylinux1_x86_64.whl", hash = "sha256:5ccb288774fdfb07a7e7025ffec286971c06d8d7b4fb162525334616d7629ff9", size = 731725872, upload-time = "2023-06-01T19:24:57.328Z" },
@@ -1094,9 +1124,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.4.5.107"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "nvidia-cusparse-cu12", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-cusparse-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/1d/8de1e5c67099015c834315e333911273a8c6aaba78923dd1d1e25fc5f217/nvidia_cusolver_cu12-11.4.5.107-py3-none-manylinux1_x86_64.whl", hash = "sha256:8a7ec542f0412294b15072fa7dab71d31334014a69f953004ea7a118206fe0dd", size = 124161928, upload-time = "2023-04-19T15:51:25.781Z" },
@@ -1121,7 +1151,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.1.0.106"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/65/5b/cfaeebf25cd9fdec14338ccb16f6b2c4c7fa9163aefcf057d86b9cc248bb/nvidia_cusparse_cu12-12.1.0.106-py3-none-manylinux1_x86_64.whl", hash = "sha256:f3b50f42cf363f86ab21f720998517a659a48131e8d538dc02f8768237bd884c", size = 195958278, upload-time = "2023-04-19T15:51:49.939Z" },
@@ -1375,7 +1405,8 @@ torch = [
     { name = "torch", version = "2.13.0", source = { registry = "https://pypi.org/simple" } },
 ]
 torch-dgl = [
-    { name = "dgl" },
+    { name = "dgl", version = "2.2.1", source = { registry = "https://data.dgl.ai/wheels/torch-2.3/repo.html" }, marker = "(sys_platform == 'linux' and extra == 'extra-12-ppm-geometry-torch-dgl') or (extra == 'extra-12-ppm-geometry-torch-dgl' and extra == 'extra-12-ppm-geometry-torch-hf') or (extra == 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch') or (extra == 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch-dgl') or (extra == 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch-hf') or (extra == 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-dgl') or (extra == 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-hf')" },
+    { name = "dgl", version = "2.2.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-12-ppm-geometry-torch-dgl') or (extra == 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch') or (extra == 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch-dgl') or (extra == 'extra-12-ppm-geometry-tf' and extra == 'extra-12-ppm-geometry-torch-hf') or (extra == 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-dgl') or (extra == 'extra-12-ppm-geometry-torch' and extra == 'extra-12-ppm-geometry-torch-hf') or (extra == 'extra-12-ppm-geometry-torch-dgl' and extra == 'extra-12-ppm-geometry-torch-hf')" },
     { name = "numpy" },
     { name = "pydantic" },
     { name = "torch", version = "2.3.0", source = { registry = "https://pypi.org/simple" } },
@@ -1393,7 +1424,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dgl", marker = "extra == 'torch-dgl'", specifier = "==2.2.1" },
+    { name = "dgl", marker = "sys_platform == 'linux' and extra == 'torch-dgl'", specifier = "==2.2.1", index = "https://data.dgl.ai/wheels/torch-2.3/repo.html" },
+    { name = "dgl", marker = "sys_platform != 'linux' and extra == 'torch-dgl'", specifier = "==2.2.1" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "numpy", marker = "extra == 'torch-dgl'", specifier = "<2" },
     { name = "pandas", specifier = ">=2.0" },
@@ -1956,7 +1988,8 @@ source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "sys_platform == 'win32'",
     "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "sys_platform == 'linux'",
+    "sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32'",
 ]
 dependencies = [
     { name = "filelock" },
@@ -2086,10 +2119,10 @@ name = "triton"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "sys_platform == 'linux'",
 ]
 dependencies = [
-    { name = "filelock", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "filelock", marker = "sys_platform == 'linux'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3c/00/84e0006f2025260fa111ddfc66194bd1af731b3ee18e2fd611a00f290b5e/triton-2.3.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3c3d9607f85103afdb279938fc1dd2a66e4f5999a58eb48a346bd42738f986dd", size = 168079300, upload-time = "2024-04-05T02:47:52.164Z" },

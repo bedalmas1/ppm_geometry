@@ -107,3 +107,18 @@ conflicts = [
     ],
 ]
 
+
+[tool.uv.sources]
+# dgl==2.2.1 ships only Windows wheels on PyPI; its Linux wheels live on DGL's
+# own flat index (found 2026-10-07 when `uv sync --extra torch-dgl` failed on
+# the Linux compute server). CPU build, matching how RLHGNN has always run
+# (the server runner hides the GPU from it). Windows keeps the PyPI wheel.
+dgl = [
+    { index = "dgl-torch23-cpu", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "dgl-torch23-cpu"
+url = "https://data.dgl.ai/wheels/torch-2.3/repo.html"
+format = "flat"
+explicit = true
