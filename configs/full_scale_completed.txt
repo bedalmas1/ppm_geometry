@@ -1,0 +1,18 @@
+# (dataset, model) combinations already trained + extracted on another machine.
+# scripts/run_full_scale_server.py skips these even when results/ is absent.
+# Regenerate with: python3 scripts/run_full_scale_server.py --write-completed
+# Generated 2026-10-06 on M2-109-26-01382.
+bpic12 sutran
+bpic12 crtp_lstm
+bpic12 rlhgnn
+bpic12 generative_lstm
+bpic12 process_transformer
+sepsis mlmme
+sepsis lupin
+sepsis sutran
+sepsis controlled_transformer_suffix
+sepsis crtp_lstm
+sepsis controlled_transformer_next
+sepsis rlhgnn
+sepsis generative_lstm
+sepsis process_transformer
