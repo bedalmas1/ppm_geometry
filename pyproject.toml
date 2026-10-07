@@ -41,8 +41,10 @@ tf = [
 # reverted 2026-09-13 after migrating to a laptop with no NVIDIA GPU (Intel
 # integrated graphics only) - see STATUS.md decision log. Back to plain PyPI
 # CPU-only wheels; no [tool.uv.sources]/cu124 index override anymore.
+# Pinned 2026-10-07 to the version every Sepsis/BPIC12 run used, so the
+# Linux cu126 index (below) can't pull a newer torch onto the server.
 torch = [
-    "torch>=2.3",
+    "torch==2.13.0",
 ]
 # A6 LUPIN only. Separate group: adds a BERT checkpoint download dependency
 # not needed by any other model.
@@ -52,7 +54,7 @@ torch = [
 # (confirmed: it silently picked 2.3.0 and transformers then disabled its own
 # PyTorch backend at import time). Floor pinned explicitly here to compensate.
 torch-hf = [
-    "torch>=2.5",
+    "torch==2.13.0",
     "transformers>=4.38",
 ]
 # A3 RLHGNN only. Separate group: dgl==2.2.1's PyPI wheel bundles a
@@ -116,9 +118,22 @@ conflicts = [
 dgl = [
     { index = "dgl-torch23-cpu", marker = "sys_platform == 'linux'" },
 ]
+# Linux PyPI torch 2.13.0 is a CUDA 13 build (needs NVIDIA driver >= 580);
+# the compute server's driver is older, so torch saw no GPU (2026-10-07).
+# Same torch version, CUDA 12.6 build instead (works with driver >= 525).
+# Only the GPU-pool extras; torch-dgl stays on PyPI (RLHGNN runs on CPU).
+torch = [
+    { index = "pytorch-cu126", extra = "torch", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu126", extra = "torch-hf", marker = "sys_platform == 'linux'" },
+]
 
 [[tool.uv.index]]
 name = "dgl-torch23-cpu"
 url = "https://data.dgl.ai/wheels/torch-2.3/repo.html"
 format = "flat"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
 explicit = true

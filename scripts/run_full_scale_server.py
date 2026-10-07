@@ -150,9 +150,9 @@ def setup_envs(uv: str, extras: set[str], log_dir: Path, main_log: Path) -> None
 
 
 def check_gpu(uv: str, extras: set[str], log_dir: Path, main_log: Path) -> bool:
-    """True iff every GPU-pool extra's torch actually sees CUDA. The Linux
-    PyPI torch in uv.lock is a CUDA 13 build (needs NVIDIA driver >= 580);
-    with an older driver it silently falls back to CPU."""
+    """True iff every GPU-pool extra's torch actually sees CUDA. On Linux
+    uv.lock installs torch 2.13.0+cu126 (needs NVIDIA driver >= 525); with
+    an older driver, or no GPU visible, torch silently falls back to CPU."""
     ok = True
     probe = "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '-')"
     for extra in sorted(extras):
@@ -250,9 +250,9 @@ def main() -> None:
     setup_envs(uv, extras, log_dir, main_log)
     gpu_extras = {MODELS[m][1] for _, m in gpu_tasks} if tasks else {"torch", "torch-hf"}
     if gpu_extras and not check_gpu(uv, gpu_extras, log_dir, main_log) and not args.allow_cpu_fallback:
-        sys.exit("ERROR: torch cannot see the GPU (see GPU check lines above). Most likely the NVIDIA "
-                 "driver is < 580 (the locked Linux torch is a CUDA 13 build). Fix the driver/torch build, "
-                 "or pass --allow-cpu-fallback to train on CPU anyway.")
+        sys.exit("ERROR: torch cannot see the GPU (see GPU check lines above). Check nvidia-smi works in "
+                 "this shell, CUDA_VISIBLE_DEVICES isn't set to empty, and the driver is >= 525 (the locked "
+                 "Linux torch is a CUDA 12.6 build). Or pass --allow-cpu-fallback to train on CPU anyway.")
     if args.setup_only:
         return
 
