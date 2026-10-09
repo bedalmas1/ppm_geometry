@@ -124,6 +124,9 @@ def venv_env(extra: str, threads: int, cpu_only: bool) -> dict[str, str]:
         env[var] = str(threads)
     env["TF_NUM_INTEROP_THREADS"] = "2"
     env["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+    # hf_xet's Rust HTTP client fails behind the server's network setup
+    # (xet-read-token request errors); plain HTTP downloads work.
+    env.setdefault("HF_HUB_DISABLE_XET", "1")
     if cpu_only:
         env["CUDA_VISIBLE_DEVICES"] = ""
     return env
