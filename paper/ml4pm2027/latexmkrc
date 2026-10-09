@@ -1,0 +1,17 @@
+# latexmk configuration: pdfLaTeX + BibTeX, build artefacts kept out of the source tree.
+use Cwd;
+$pdf_mode = 1;
+$bibtex_use = 2;
+$out_dir = 'build';
+$pdflatex = 'pdflatex -interaction=nonstopmode -halt-on-error -file-line-error %O %S';
+# BibTeX runs inside build/: point it at this folder so it finds
+# references.bib and splncs04.bst (and no other references.bib on the TeX path).
+my $here = getcwd();
+my $windows_tex = ($^O eq 'MSWin32' || $^O eq 'msys' || $^O eq 'cygwin');
+if ($windows_tex) {
+    # Git-Bash/MSYS Perl reports /c/Users/...; MiKTeX needs C:/Users/...
+    $here =~ s{^/([a-zA-Z])/}{$1:/};
+}
+my $sep = $windows_tex ? ';' : ':';
+$ENV{'BIBINPUTS'} = $here . $sep . ($ENV{'BIBINPUTS'} // '');
+$ENV{'BSTINPUTS'} = $here . $sep . ($ENV{'BSTINPUTS'} // '');

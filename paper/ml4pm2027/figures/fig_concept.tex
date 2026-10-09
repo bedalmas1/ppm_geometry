@@ -1,0 +1,76 @@
+% Concept figure (Fig. 1). Pure TikZ, no data -- schematic only.
+\definecolor{okblue}{HTML}{0072B2}
+\definecolor{okorange}{HTML}{D55E00}
+\definecolor{okgreen}{HTML}{009E73}
+\definecolor{okgrey}{HTML}{6B6B6B}
+\begin{tikzpicture}[
+  font=\footnotesize,
+  ev/.style={draw=black!70, fill=black!4, rounded corners=1.5pt, minimum width=5.2mm, minimum height=4.6mm, inner sep=0pt},
+  enc/.style={draw=black!70, fill=okgrey!12, rounded corners=2pt, minimum width=12.5mm, minimum height=24mm, align=center},
+  pt/.style={circle, fill=#1, inner sep=0pt, minimum size=3.2pt},
+  traj/.style={-{Latex[length=1.6mm]}, line width=0.8pt, draw=#1},
+]
+% ---------------- (a) prefixes of one case -> encoder ----------------
+\node[anchor=west] at (-0.1,2.75) {\textbf{(a)} prefixes of one case};
+\foreach \t in {1,...,4} {
+  \pgfmathsetmacro{\y}{2.05-0.52*(\t-1)}
+  \foreach \j in {1,...,\t} {
+    \node[ev] at ({0.32+0.58*(\j-1)}, \y) {$e_{\j}$};
+  }
+  \node[okgrey] at (2.62, \y) {$h_{\t}$};
+}
+\node[enc] (f) at (3.95,1.27) {encoder\\$f$};
+\foreach \t in {1,...,4} {
+  \pgfmathsetmacro{\y}{2.05-0.52*(\t-1)}
+  \draw[-{Latex[length=1.3mm]}, okgrey] (2.88,\y) -- (3.28,\y);
+}
+\draw[-{Latex[length=1.6mm]}, line width=0.8pt] (f.east) -- ++(0.6,0) node[midway, above] {$\z_t$};
+\node[okgrey, font=\scriptsize] at (3.95,-0.22) {pre-head read-out};
+
+% ---------------- (b) latent space ----------------
+\begin{scope}[xshift=5.4cm]
+  \node[anchor=west] at (-0.1,2.75) {\textbf{(b)} latent trajectories in $\mathbb{R}^d$};
+  \draw[black!25, rounded corners=3pt] (0,-0.45) rectangle (6.45,2.5);
+
+  % main (orange) trajectory with chord and one turning angle
+  \coordinate (a1) at (0.40,0.25);
+  \coordinate (a2) at (1.25,0.95);
+  \coordinate (a3) at (2.20,0.60);
+  \coordinate (a4) at (3.00,1.45);
+  \coordinate (a5) at (3.85,1.25);
+  \draw[traj=okorange] (a1) -- (a2);
+  \draw[traj=okorange] (a2) -- (a3);
+  \draw[traj=okorange] (a3) -- (a4);
+  \draw[traj=okorange] (a4) -- (a5);
+  \foreach \i in {1,...,5} \node[pt=okorange] at (a\i) {};
+  \node[below=1pt, okorange] at (a1) {$\z_1$};
+  \node[above=1pt, okorange] at (a2) {$\z_2$};
+  \node[below=1pt, okorange] at (a3) {$\z_3$};
+  \node[above=1pt, okorange] at (a4) {$\z_4$};
+  \node[right=1pt, okorange] at (a5) {$\z_{T'}$};
+  \draw[dashed, black!55] (a1) -- (a5);
+  \node[black!65, font=\scriptsize, rotate=16] at (1.55,0.38) {chord};
+  % turning angle at z3: dotted continuation of the incoming step
+  \coordinate (ext) at ($(a3)!0.55!($(a3)+(a3)-(a2)$)$);
+  \draw[densely dotted, black!55] (a3) -- (ext);
+  \pic[draw=black!70, angle radius=2.6mm] {angle = ext--a3--a4};
+  \node[black!80, font=\scriptsize] at ($(a3)+(0.52,0.12)$) {$\theta_3$};
+  \node[okgrey, font=\scriptsize, anchor=west] at (0.15,-0.25)
+    {$S=\|\z_{T'}-\z_1\|\,/\,\textstyle\sum_t\|\Delta_t\|$};
+
+  % two different histories reaching a similar region
+  \coordinate (b1) at (4.55,0.00);
+  \coordinate (b2) at (5.00,0.55);
+  \coordinate (b3) at (5.50,1.25);
+  \coordinate (c1) at (6.30,0.05);
+  \coordinate (c2) at (6.15,0.75);
+  \coordinate (c3) at (5.85,1.40);
+  \draw[traj=okblue] (b1) -- (b2);
+  \draw[traj=okblue] (b2) -- (b3);
+  \draw[traj=okgreen] (c1) -- (c2);
+  \draw[traj=okgreen] (c2) -- (c3);
+  \foreach \i in {1,2,3} { \node[pt=okblue] at (b\i) {}; \node[pt=okgreen] at (c\i) {}; }
+  \draw[black!60, densely dashed, rounded corners=4pt] (5.25,1.02) rectangle (6.10,1.65);
+  \node[align=center, black!75, font=\scriptsize] at (5.3,2.12) {different histories,\\[-1pt]similar futures?};
+\end{scope}
+\end{tikzpicture}

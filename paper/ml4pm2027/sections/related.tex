@@ -1,0 +1,35 @@
+\section{Related Work}\label{sec:related}
+
+\paragraph{PPM models.}
+Deep next-activity prediction began with recurrent
+models~\cite{evermann2017deep,tax2017lstm}. It then moved to stacked
+LSTMs~\cite{camargo2019lstm}, CNNs~\cite{dimauro2019inception},
+self-attention~\cite{bukhsh2021processtransformer} and
+GNNs~\cite{dissegna2025gnn,wang2025rlhgnn}. Suffix prediction uses adversarial
+LSTM encoder--decoders~\cite{taymouri2021mlmme}, direct
+LSTMs~\cite{gunnarsson2023crtp}, Transformer encoder--decoders~\cite{wuyts2024sutran}
+and fine-tuned language models~\cite{pasquadibisceglie2024lupin}. Benchmarks
+show that reported gains depend on preprocessing and
+splits~\cite{rama2022review} and that common splits leak
+information~\cite{weytjens2022leakage}, which motivates our single
+chronological pipeline. None of these works examines what the internal
+representation contains.
+
+\paragraph{Representations and reliability in PPM.}
+Representation learning in process mining targets reusable embeddings for
+downstream tasks~\cite{dekoninck2018act2vec,teinemaa2019outcome}.
+Uncertainty-aware PPM estimates reliability from the output
+distribution~\cite{weytjens2022uncertainty}. We instead measure the
+representation itself and test whether it adds error information beyond the
+output distribution (RQ2).
+
+\paragraph{Representation geometry.}
+Straightening of temporal trajectories has been reported in human perception
+of video~\cite{henaff2019straightening} and in language
+models~\cite{hosseini2023straighten}. Intrinsic dimension tracks
+generalisation in deep networks~\cite{ansuini2019intrinsic}, and
+trustworthiness and continuity~\cite{venna2001neighborhood} quantify
+neighbourhood preservation. We adapt these tools to event sequences in two
+ways: we index trajectories by process progress, and we compare latent space
+against the space of possible \emph{futures} under explicit control for
+history.

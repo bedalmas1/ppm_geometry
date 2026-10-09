@@ -1,0 +1,48 @@
+\section{Problem Formulation}\label{sec:background}
+
+A trace $\sigma=(e_1,\dots,e_T)$ is a sequence of activities $e_t\in\mathcal{A}$.
+Its prefix is $h_t=(e_1,\dots,e_t)$ and its future is
+$\tau_t=(e_{t+1},\dots,e_T)$. A \emph{next-event} model estimates
+$P(e_{t+1}\mid h_t)$, and a \emph{full-suffix} model estimates $P(\tau_t\mid h_t)$.
+Every model we study factorises as $\hat y_t=g(f(h_t))$, with a prediction
+head $g$. We call $\z_t=f(h_t)\in\R^d$, read immediately before $g$, the
+\emph{prefix representation}, and $Z_\sigma=(\z_1,\dots,\z_{T'})$ the
+\emph{latent trajectory} of the case (\cref{fig:concept}). Here $T'=T-1$ for
+next-event models and $T'=T$ for suffix models, whose last prefix predicts
+end-of-case. All geometry is computed in each model's own space $\R^d$, with
+$d$ between 32 and 512. 2-D projections are used only for illustration.
+
+\begin{figure}[t]
+\centering
+\resizebox{\linewidth}{!}{\input{figures/fig_concept.tex}}
+\caption{(a) Each prefix is encoded into $\z_t$ before the prediction head.
+(b) A case becomes a latent curve. We measure its straightness (chord
+vs.\ path length), step sizes and turning angles $\theta_t$, and ask whether
+prefixes with different histories but similar futures are close (blue and
+green).}
+\label{fig:concept}
+\end{figure}
+
+\paragraph{Future equivalence.}
+Two prefixes are future-equivalent, $h_i\simF h_j$, if
+$P(\tau\mid h_i)\approx P(\tau\mid h_j)$. This is the natural target of a suffix
+objective. It can hold for different histories (paths that have merged) and
+fail for near-identical ones (paths about to branch). A representation
+approximating $\simF$ should therefore
+\begin{enumerate*}[label=(\roman*)]
+\item retrieve similar futures even among pairs with \emph{dissimilar}
+      histories, and
+\item separate pairs with \emph{similar} histories whose futures diverge.
+\end{enumerate*}
+Because each test prefix has only one observed future, we turn these two
+properties into tests on observed suffixes (\cref{sec:method-future}).
+
+\paragraph{Hypotheses.} RQ1 is descriptive and carries no hypothesis. For RQ2
+and RQ3 we test, rather than assume, the following:
+\textbf{H1}~geometry predicts errors beyond confidence and prefix length (RQ2);
+\textbf{H2}~models differ in how early in a case they separate cases with
+different futures; \textbf{H3}~in the strongest representations, latent
+proximity reflects future similarity and not merely history similarity (both
+RQ3). Where RQ1 reveals a difference between next-event and suffix models, we
+attribute it to the objective only if the controlled pair shows it as well
+(\cref{sec:method-families}).

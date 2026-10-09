@@ -1,0 +1,32 @@
+\section{Results}\label{sec:results}
+% Page budget (12-page CFP limit incl. references): this section <= ~3.3 pages.
+% Every number must come from scripts/make_assets.py reading results/.
+% Family A and Family B in separate tables/panels; objective attributions from Family B only.
+
+\TODO{Not yet reported. Fill in once Phase 6 full scale (9 models $\times$ 5
+logs), Phase 7 (reliability) and Phase 8 (future organisation) are complete.}
+
+\subsection{Sanity and predictive performance}\label{sec:res-sanity}
+\TODO{About 0.3 pages. One compact table of validation/test task metrics with
+collapse flags (generated). One sentence on the validation-to-test gap under
+the chronological split.}
+
+\subsection{RQ1: What do the models learn?}\label{sec:res-rq1}
+\TODO{About 1 page. Per model and log: used dimensionality ($\erank/d$, PR),
+trajectory shape ($S$, $\theta$, normalised step size, with bootstrap CIs
+over cases) and progress profiles (one figure). Describe the patterns that
+recur across logs and those that vary with architecture or objective. Make
+any objective attribution only from the B1 vs.\ B2 contrast, using the
+length-matched comparison. No hypothesis verdict; this question is
+descriptive.}
+
+\subsection{RQ2: Does geometry predict errors?}\label{sec:res-rq2}
+\TODO{About 1 page. Table of A vs.\ B vs.\ C (AUROC, AUPRC, Brier, $\Delta$
+log-likelihood, CIs) per model and log, plus the high-confidence-error
+analysis. Give a verdict on H1 with effect sizes, not only $p$-values.}
+
+\subsection{RQ3: Organisation by future}\label{sec:res-rq3}
+\TODO{About 1 page. Global alignment, precision@10, trustworthiness, both
+history-controlled tests against the non-learned history floor, and one
+figure of branch-separation curves over progress. Give verdicts on H2 and
+H3.}

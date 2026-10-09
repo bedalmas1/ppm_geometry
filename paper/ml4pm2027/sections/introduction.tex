@@ -1,0 +1,62 @@
+\section{Introduction}\label{sec:intro}
+% Numbering map to the project spec (process_geometry_experiment_prompt.md):
+%   paper RQ1 = spec RQ1 reframed as a descriptive question ("what is learned"),
+%               with no objective-level hypothesis attached;
+%   paper RQ2 = spec RQ3, paper RQ3 = spec RQ5;
+%   paper H1 = spec H4, H2 = spec H6, H3 = spec H7.
+% Spec H1/H2 (objective effects) are reported only as a secondary, Family-B-only
+% contrast inside RQ1. Spec RQ2/RQ4 and H3/H5 are deferred to the journal
+% extension (see STATUS.md).
+
+Neural sequence models are the default approach to predictive process
+monitoring (PPM). They include recurrent~\cite{tax2017lstm,evermann2017deep,camargo2019lstm},
+Transformer~\cite{bukhsh2021processtransformer,wuyts2024sutran},
+graph~\cite{dissegna2025gnn,wang2025rlhgnn} and fine-tuned language
+models~\cite{pasquadibisceglie2024lupin}. They are compared on task metrics
+such as accuracy, suffix similarity and remaining-time
+error~\cite{rama2022review,teinemaa2019outcome}. These metrics summarise what
+a model \emph{outputs}, not what it has \emph{learned}. Every such model maps
+each prefix $h_t=(e_1,\dots,e_t)$ to a vector $\z_t\in\R^d$ before its
+prediction head, so a case becomes a latent trajectory $\z_1\to\cdots\to\z_T$.
+This vector is the model's entire summary of the running case, and its
+geometry is never inspected. Outside process mining, such geometry is known to
+be informative: perception and language models \emph{straighten} the
+trajectories of natural sequences~\cite{henaff2019straightening,hosseini2023straighten}.
+In PPM, representations have been treated only as a means to better
+features~\cite{dekoninck2018act2vec}.
+
+We study the representations of nine PPM models through three research
+questions:
+\begin{description}[leftmargin=1.2em,labelsep=0.4em,itemsep=0pt,topsep=2pt,font=\normalfont\bfseries]
+  \item[RQ1] What do PPM models learn in their prefix representations? We
+        examine how many dimensions they actually use, whether they collapse,
+        what shape case trajectories take, and how this varies across
+        architectures, objectives and logs.
+  \item[RQ2] Does geometry carry information about prediction errors beyond
+        confidence and prefix length?
+  \item[RQ3] Do models place prefixes with similar \emph{futures} close together
+        even when their histories differ?
+\end{description}
+RQ1 is descriptive. RQ2 matters in practice, because a usable error signal
+would tell users when to trust a prediction. RQ3 asks whether a model's state
+encodes where a case is going or only where it has been. Answering these
+questions requires care: a straight trajectory may simply be a collapsed one,
+latent proximity may only reflect shared history, and published models differ
+in many respects at once. Our design addresses each of these pitfalls.
+
+\paragraph{Contributions.}
+\begin{enumerate*}[label=(\arabic*)]
+\item A measurement framework for latent prefix trajectories. It pairs every
+      trajectory metric with collapse diagnostics, tests error prediction with
+      nested models, and adds two history-controlled tests of \emph{future
+      equivalence}. Every metric is validated on synthetic trajectories with
+      known values (\cref{sec:method}).
+\item A two-family design. Seven published models are reproduced under one
+      shared chronological pipeline. A controlled Transformer pair varies only
+      the objective, so that any objective effect can be attributed
+      (\cref{sec:setup}).
+\item An empirical study of RQ1--RQ3 on five public logs, with falsifiable
+      hypotheses for RQ2 and RQ3 whose rejections are reported
+      (\cref{sec:results}).
+\end{enumerate*}
+\TODO{One sentence with the headline findings once \cref{sec:results} is filled.}

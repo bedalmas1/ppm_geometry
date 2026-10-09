@@ -1,0 +1,110 @@
+\section{Methodology}\label{sec:method}
+
+\subsection{What is learned (RQ1)}\label{sec:method-traj}
+RQ1 describes each model's representation on three levels. At the level of
+the whole space we ask how many dimensions are used and whether the space has
+collapsed. At the level of the case we ask what shape the trajectories take.
+At the level of progress we ask how step size and turning change as a case
+advances. We then compare these profiles across architectures, objectives and
+logs.
+
+With $\Delta_t=\z_t-\z_{t-1}$, each case gets a path length
+$L=\sum_t\|\Delta_t\|$ and a straightness $S=\|\z_{T'}-\z_1\|/L\in[0,1]$. Each
+step gets a step size $v_t=\|\Delta_t\|$, a turning angle
+$\theta_t=\arccos\big(\Delta_t^{\top}\Delta_{t+1}/\|\Delta_t\|\|\Delta_{t+1}\|\big)$
+and an acceleration $a_t=\|\Delta_{t+1}-\Delta_t\|$. Degenerate inputs return
+\texttt{NaN}, never a value that looks good: a collapsed trajectory gives an
+undefined $S$, not $S=1$. High $S$ can arise from collapse or from short
+trajectories, so trajectory metrics are interpreted only alongside
+diagnostics computed on all test representations of a model:
+\begin{itemize}[leftmargin=1.2em,itemsep=0pt,topsep=1pt]
+  \item total variance;
+  \item effective rank $\erank=\exp(-\sum_i p_i\log p_i)$, with $p_i=\lambda_i/\sum_j\lambda_j$;
+  \item participation ratio $\PR=(\sum_i\lambda_i)^2/\sum_i\lambda_i^2$;
+  \item the distribution of pairwise distances.
+\end{itemize}
+A model is flagged as collapsed if its variance is at most $10^{-9}$ or
+$\erank<1.5$. Because $d$ differs across models, we compare scale-free
+quantities only: $\erank/d$, $\PR$, $S$, $\theta_t$, and step sizes normalised
+by each model's median pairwise distance. Progress profiles average $v_t$ and
+$\theta_t$ within ten bins of normalised progress $s=t/T$. Next-event
+trajectories are one prefix shorter than suffix trajectories, so cross-objective
+comparisons drop the final suffix prefix.
+\QUESTION{Should RQ1 also test what is \emph{decodable} from $\z_t$? Linear
+probes (logistic or ridge regression on frozen $\z_t$, fitted on training
+prefixes and scored on test) could predict last activity, prefix length,
+remaining time and next activity. They would compare against the same probes
+on an untrained encoder and on non-learned history encodings. This would answer
+``what do the models learn'' directly rather than only through geometry. It
+costs about 0.3 pages and needs training-split embeddings, which Phase 7 needs
+anyway. Not in the plan yet: parked in PLAN.md (``Parked options'', P1).}
+
+\subsection{Reliability (RQ2)}\label{sec:method-rel}
+For every test prediction we fit three nested logistic models of the
+probability of an error:
+\begin{itemize}[leftmargin=1.2em,itemsep=0pt,topsep=1pt]
+  \item[(A)] confidence only: maximum probability, entropy and margin;
+  \item[(B)] (A) plus prefix length;
+  \item[(C)] (B) plus geometric features of the trajectory so far.
+\end{itemize}
+The geometric features in (C) are straightness to date, the most recent and
+the maximum turning angle, the most recent step size, cumulative path length,
+mean acceleration, and the distance to the nearest training representation.
+Models are fitted on the validation split and evaluated on test with AUROC,
+AUPRC, Brier score and log-likelihood gain. Paired bootstrap confidence
+intervals compare C with B. We report high-confidence errors separately,
+since that is where confidence alone fails. H1 is supported only if C
+improves on B with an interval that excludes zero.
+\TODO{Phase 7 not yet run. Validation- and training-split embeddings must first be
+extracted, since only test embeddings exist (STATUS next step 9). Fix the
+confidence threshold for the ``high-confidence'' subset and the number of
+bootstrap resamples.}
+
+\subsection{Future organisation (RQ3)}\label{sec:method-future}
+For a fixed-seed sample of $n=500$ test prefixes we build:
+\begin{itemize}[leftmargin=1.2em,itemsep=0pt,topsep=1pt]
+  \item the latent distance matrix $D_Z$ (Euclidean);
+  \item the history distance $D_H$, the normalised Damerau--Levenshtein (edit)
+        distance between observed prefixes;
+  \item future distances $D_F$ between observed suffixes, recomputed from the
+        raw log so that next-event and suffix models are judged against the
+        same reference: edit distance, Jaccard distance on activity sets and on
+        2-gram sets, and normalised remaining-time difference.
+\end{itemize}
+We report global alignment $\rho(D_Z,D_F)$ (Spearman), precision@10 of
+nearest-neighbour sets, and trustworthiness and
+continuity~\cite{venna2001neighborhood}, computed directly on the two distance
+matrices. Histories and futures of a case are correlated, so global alignment
+alone cannot support H3. H3 rests on two \emph{history-controlled} tests,
+with $\eta$ the median of $D_H$:
+\begin{enumerate*}[label=(\roman*)]
+\item $\rho(D_Z,D_F)$ restricted to pairs with $D_H>\eta$, where a positive
+      value means similar futures are retrieved despite dissimilar histories;
+\item the same restricted to pairs with $D_H\le\eta$, where a positive value
+      means similar histories with divergent futures are pulled apart.
+\end{enumerate*}
+For H2, each prefix is assigned normalised progress $s\in[0,1]$, binned into
+ten bins. Within each bin we compute a Fisher ratio of between-group to
+within-group scatter, grouping prefixes by the terminal activity of the case.
+A separation ``horizon'' is reported only if it beats a label-permutation
+null. Non-learned history encodings (activity counts, last activity) serve
+as a floor for every RQ3 statistic.
+
+\subsection{Validation and experiment families}\label{sec:method-families}
+Before any real embedding was analysed, every metric was tested (44 unit
+tests) on synthetic trajectories with analytically known values:
+\begin{itemize}[leftmargin=1.2em,itemsep=0pt,topsep=1pt]
+  \item a straight line, with $S=1$ and $\theta=0$;
+  \item a circular arc, checked against closed-form values;
+  \item a backtracking path, with a single turn of $\theta=\pi$;
+  \item a collapsed trajectory, which must return \texttt{NaN};
+  \item branching and reconverging ensembles.
+\end{itemize}
+The history-controlled tests are also checked against a hand-built scenario
+with known correlations. Comparisons are split into two families that are
+never pooled. \famA (ecological) contains published models, reproduced under
+a shared scope; its comparisons are descriptive. \famB (controlled) contains
+one encoder trained under the next-event objective (B1) and the suffix
+objective (B2), with identical architecture, dimension, optimiser and budget.
+B2 adds only a decoder. A difference seen in \famA between next-event and
+suffix models is attributed to the objective only if \famB shows it too.

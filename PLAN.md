@@ -236,6 +236,12 @@ Tasks:
 
 ---
 
+## Parked options (not scheduled — revisit if needed)
+
+Ideas that were considered and deliberately **not** added to any phase yet. Each one names where it would slot in and what it would need, so it can be activated without re-deriving the reasoning.
+
+- **P1 — Linear probes on z_t for "what do the models learn" (added 2026-10-08).** Motivation: the ML4PM paper's RQ1 was reframed to "what do PPM models learn in their prefix representations?" (see STATUS.md decision log, 2026-10-08), and geometry statistics answer it only indirectly. A probe answers it directly: fit simple linear models (logistic regression for categorical targets, ridge for continuous ones) on frozen z_t from *training* prefixes, and score them on *test* prefixes. Targets: last activity, prefix length, remaining time and next activity. Optional extra targets: activity-set-so-far and future activity set. Mandatory baselines: the same probes on an untrained/randomly initialised encoder and on non-learned history encodings (activity counts, last activity). Without these, decodability says nothing about *learning* (spec §15's random-encoder control). Would slot into Phase 6 (descriptive) alongside the geometry diagnostics. Needs training-split embeddings, which Phase 7 needs anyway (STATUS next step 9). Paper cost is about 0.3 pages. Tracked in the paper as a `\QUESTION{}` box in `paper/ml4pm2027/sections/method.tex` §4.1.
+
 ## Cross-cutting reminders (apply in every phase)
 
 - Never use UMAP/t-SNE coordinates for quantitative claims — original latent space only (visualization use is fine).

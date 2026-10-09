@@ -1,0 +1,81 @@
+% ML4PM 2027 (ICPM 2027 workshop) submission draft.
+% Springer LNCS format (llncs.cls + splncs04.bst bundled in this folder).
+% Build: see README.md  (latexmk -pdf main.tex)
+\documentclass[runningheads]{llncs}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing,angles,quotes,backgrounds,fit}
+\usepackage{xspace}
+\usepackage[inline]{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+% ---------------------------------------------------------------------------
+% Draft switch: TODO boxes are shown unless \FINAL is defined. Build the
+% submission version (no TODO boxes) with:  latexmk submission.tex
+% ---------------------------------------------------------------------------
+\newif\ifdraft
+\ifdefined\FINAL\draftfalse\else\drafttrue\fi
+\ifdraft
+  \usepackage[textsize=footnotesize]{todonotes}
+  \newcommand{\TODO}[1]{\todo[inline,color=orange!20,bordercolor=orange!60]{\textbf{TODO:} #1}}
+  % Parked ideas / decisions not yet taken (see PLAN.md "Parked options").
+  \newcommand{\QUESTION}[1]{\todo[inline,color=blue!10,bordercolor=blue!50]{\textbf{OPEN QUESTION:} #1}}
+\else
+  \usepackage[disable]{todonotes}
+  \newcommand{\TODO}[1]{}
+  \newcommand{\QUESTION}[1]{}
+\fi
+
+% ---------------------------------------------------------------------------
+% Notation
+% ---------------------------------------------------------------------------
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\z}{\mathbf{z}}
+\newcommand{\famA}{Family~A\xspace}
+\newcommand{\famB}{Family~B\xspace}
+\newcommand{\eg}{e.g.,\xspace}
+\newcommand{\ie}{i.e.,\xspace}
+\newcommand{\etal}{\textit{et al.}\xspace}
+\newcommand{\simF}{\sim_{F}}
+\DeclareMathOperator{\erank}{erank}
+\DeclareMathOperator{\PR}{PR}
+
+\begin{document}
+
+\title{What Do Predictive Process Monitoring Models Learn?\\
+\large Latent Trajectories, Prediction Errors and Future Organisation}
+\titlerunning{What Do PPM Models Learn?}
+
+% Anonymised for double-blind review -- restore for camera-ready.
+\author{Anonymous Author(s)}
+\authorrunning{Anonymous}
+\institute{Anonymous Institution}
+% \author{Benjamin Dalmas\inst{1}\orcidID{0000-0000-0000-0000}}
+% \institute{<Affiliation> \\ \email{<email>}}
+
+\maketitle
+
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/background}
+\input{sections/related}
+\input{sections/method}
+\input{sections/setup}
+\input{sections/results}
+\input{sections/discussion}
+\input{sections/conclusion}
+
+\bibliographystyle{splncs04}
+\bibliography{references}
+
+\end{document}
