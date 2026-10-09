@@ -258,7 +258,7 @@ def main() -> None:
         stopped_early = resume_state["stopped_early"]
         random.setstate(resume_state["random_state"])
         np.random.set_state(resume_state["numpy_state"])
-        torch.set_rng_state(resume_state["torch_state"])
+        torch.set_rng_state(resume_state["torch_state"].cpu())
         print(
             f"[{dataset_name}] resumed at epoch {start_epoch} "
             f"(best_val_loss={best_val_loss:.4f}, {len(train_losses)} epochs already run, "
